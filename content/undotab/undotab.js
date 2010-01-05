@@ -1,4 +1,4 @@
-var UndoTabOpsService = { 
+var UndoTabService = { 
 	PREFROOT : 'extensions.undotab@piro.sakura.ne.jp',
 	
 	get SessionStore() { 
@@ -101,6 +101,16 @@ var UndoTabOpsService = {
 		return this.getArrayFromXPathResult(this.getTabs(aTabBrowser));
 	},
  
+	getTabAt : function UT_getTabAt(aIndex, aTabBrowser) 
+	{
+		if (aIndex < 0) return null;
+		return this.evaluateXPath(
+				'descendant::xul:tab['+(aIndex+1)+']',
+				aTabBrowser.mTabContainer,
+				XPathResult.FIRST_ORDERED_NODE_TYPE
+			).singleNodeValue;
+	},
+ 
 	importTab : function UT_importTab(aTab, aTabBrowser) 
 	{
 		var newTab = aTabBrowser.addTab('about:blank');
@@ -158,7 +168,7 @@ var UndoTabOpsService = {
 		eval('aTabBrowser.addTab = '+aTabBrowser.addTab.toSource().replace(
 			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
 			<![CDATA[
-				UndoTabOpsService.onTabOpen(
+				UndoTabService.onTabOpen(
 					function() {
 						$1
 					},
@@ -172,7 +182,7 @@ var UndoTabOpsService = {
 		eval('aTabBrowser.loadOneTab = '+aTabBrowser.loadOneTab.toSource().replace(
 			/(var tab = this.addTab\([^\;]+\);)/,
 			<![CDATA[
-				var tab = UndoTabOpsService.onLoadOneTab(
+				var tab = UndoTabService.onLoadOneTab(
 					function() {
 						$1
 						return tab;
@@ -188,7 +198,7 @@ var UndoTabOpsService = {
 			eval('aTabBrowser._beginRemoveTab = '+aTabBrowser._beginRemoveTab.toSource().replace(
 				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
 				<![CDATA[
-					UndoTabOpsService.onTabClose(
+					UndoTabService.onTabClose(
 						function() {
 							$1
 						},
@@ -202,7 +212,7 @@ var UndoTabOpsService = {
 			eval('aTabBrowser.removeTab = '+aTabBrowser.removeTab.toSource().replace(
 				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
 				<![CDATA[
-					UndoTabOpsService.onTabClose(
+					UndoTabService.onTabClose(
 						function() {
 							$1
 						},
@@ -216,7 +226,7 @@ var UndoTabOpsService = {
 		eval('aTabBrowser.moveTabTo = '+aTabBrowser.moveTabTo.toSource().replace(
 			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
 			<![CDATA[
-				UndoTabOpsService.onTabMove(
+				UndoTabService.onTabMove(
 					function() {
 						$1
 					},
@@ -231,7 +241,7 @@ var UndoTabOpsService = {
 			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
 				/(newTab = this.addTab\("about:blank"\);.*this.selectedTab = newTab;)/,
 				<![CDATA[
-					UndoTabOpsService.importTabOnDrop(
+					UndoTabService.importTabOnDrop(
 						function() {
 							$1
 						},
@@ -242,7 +252,7 @@ var UndoTabOpsService = {
 			).replace(
 				/(newTab = this.loadOneTab\([^;]*\);.*this.moveTabTo\([^;]*\);)/,
 				<![CDATA[
-					UndoTabOpsService.openNewTabOnDrop(
+					UndoTabService.openNewTabOnDrop(
 						function() {
 							$1
 						},
@@ -256,7 +266,7 @@ var UndoTabOpsService = {
 			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
 				/(this\.replaceTabWithWindow\(([^;]*)\);)/,
 				<![CDATA[
-					UndoTabOpsService.replaceTabWithWindow(
+					UndoTabService.replaceTabWithWindow(
 						function(aDraggedTab) {
 							draggedTab = aDraggedTab;
 							return $1
@@ -317,8 +327,7 @@ var UndoTabOpsService = {
  
 	onTabOpen : function(aTask, aTabBrowser, aTab, aArguments) 
 	{
-Application.console.log('onTabOpen');
-		var newTab = aTab;
+		var newTabIndex = aTab._tPos;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
 				aTask.call(aTabBrowser);
@@ -329,20 +338,18 @@ Application.console.log('onTabOpen');
 			{
 				label  : 'open new tab',
 				onUndo : function(aInfo) {
-Application.console.log('onTabOpen undo '+aInfo.level);
-					if (!newTab || !newTab.parentNode) {
-						newTab = null;
-						return false;
-					}
 					if (aInfo.level) return;
-					UndoTabOpsService.makeTabUnrecoverable(newTab);
+					var newTab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
+					if (!newTab) return false;
+					UndoTabService.makeTabUnrecoverable(newTab);
 					aTabBrowser.removeTab(newTab);
-					newTab = null;
+					newTabIndex = -1;
 				},
 				onRedo : function(aInfo) {
-Application.console.log('onTabOpen redo '+aInfo.level);
 					if (aInfo.level) return;
-					newTab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
+					var tab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
+					aTabBrowser.moveTabTo(tab, newTabIndex);
+					newTabIndex = tab._tPos;
 				}
 			}
 		);
@@ -350,11 +357,12 @@ Application.console.log('onTabOpen redo '+aInfo.level);
  
 	onLoadOneTab : function(aTask, aTabBrowser, aTab, aArguments) 
 	{
-Application.console.log('onLoadOneTab');
+		var newTabIndex;
 		var newTab;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
 				newTab = aTask.call(aTabBrowser);
+				newTabIndex = newTab._tPos;
 			},
 
 			'TabbarOperations',
@@ -362,20 +370,17 @@ Application.console.log('onLoadOneTab');
 			{
 				label  : 'open new tab',
 				onUndo : function(aInfo) {
-Application.console.log('onLoadOneTab undo '+aInfo.level);
-					if (!newTab || !newTab.parentNode) {
-						newTab = null;
-						return false;
-					}
 					if (aInfo.level) return;
-					UndoTabOpsService.makeTabUnrecoverable(newTab);
+					var newTab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
+					if (!newTab) return false;
 					aTabBrowser.removeTab(newTab);
-					newTab = null;
+					newTabIndex = -1;
 				},
 				onRedo : function(aInfo) {
-Application.console.log('onLoadOneTab redo '+aInfo.level);
 					if (aInfo.level) return;
-					newTab = aTabBrowser.loadOneTab.apply(aTabBrowser, aArguments);
+					var tab = aTabBrowser.loadOneTab.apply(aTabBrowser, aArguments);
+					aTabBrowser.moveTabTo(tab, newTabIndex);
+					newTabIndex = tab._tPos;
 				}
 			}
 		);
@@ -384,10 +389,8 @@ Application.console.log('onLoadOneTab redo '+aInfo.level);
  
 	onTabClose : function(aTask, aTabBrowser, aTab) 
 	{
-Application.console.log('onTabClose');
 		var position = aTab._tPos;
 		var state = this.SessionStore.getTabState(aTab);
-		var newTab;
 
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
@@ -397,21 +400,19 @@ Application.console.log('onTabClose');
 			'TabbarOperations',
 			window,
 			{
-				label  : 'open new tab',
+				label  : 'close tab',
 				onUndo : function(aInfo) {
-Application.console.log('onTabClose undo '+aInfo.level);
 					if (aInfo.level) return;
-					newTab = aTabBrowser.addTab('about:blank');
-					UndoTabOpsService.SessionStore.setTabState(newTab, state, false);
+					var newTab = aTabBrowser.addTab('about:blank');
+					UndoTabService.SessionStore.setTabState(newTab, state, false);
 					aTabBrowser.moveTabTo(newTab, position);
 				},
 				onRedo : function(aInfo) {
-Application.console.log('onTabClose redo '+aInfo.level);
-					if (!newTab) return false;
+					var tab = UndoTabService.getTabAt(position, aTabBrowser);
+					if (!tab) return false;
 					if (aInfo.level) return;
-					UndoTabOpsService.makeTabUnrecoverable(newTab);
-					aTabBrowser.removeTab(newTab);
-					newTab = null;
+					UndoTabService.makeTabUnrecoverable(tab);
+					aTabBrowser.removeTab(tab);
 				}
 			}
 		);
@@ -419,7 +420,6 @@ Application.console.log('onTabClose redo '+aInfo.level);
  
 	onTabMove : function(aTask, aTabBrowser, aTab, aOldPosition) 
 	{
-Application.console.log('onTabMove');
 		var newIndex = aTab._tPos;
 		var oldIndex = aOldPosition;
 
@@ -431,27 +431,23 @@ Application.console.log('onTabMove');
 			'TabbarOperations',
 			window,
 			{
-				label  : 'rearrange tab',
+				label  : 'move tab',
 				onUndo : function(aInfo) {
-Application.console.log('onTabMove undo '+aInfo.level);
-					if (!aTab || !aTab.parentNode) {
-						aTab = null;
-						return false;
-					}
 					if (aInfo.level) return;
-					aTabBrowser.moveTabTo(aTab, oldIndex);
+					var tab = UndoTabService.getTabAt(newIndex, aTabBrowser);
+					if (!tab) return false;
+					aTabBrowser.moveTabTo(tab, oldIndex);
 				},
 				onRedo : function(aInfo) {
-Application.console.log('onTabMove redo '+aInfo.level);
-					if (!aTab || !aTab.parentNode) {
-						aTab = null;
-						return false;
-					}
+					var tab = UndoTabService.getTabAt(oldIndex, aTabBrowser);
+					if (!tab) return false;
 					if (aInfo.level) return;
-					aTabBrowser.moveTabTo(aTab, newIndex);
+					aTabBrowser.moveTabTo(tab, newIndex);
 				}
 			}
 		);
+
+		aTab = null;
 	},
  
 	importTabOnDrop : function(aTask, aTabBrowser, aDraggedTab) 
@@ -469,7 +465,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 			'TabbarOperations',
 			sourceWindow,
 			(sourceEntry = {
-				label  : 'move tab on drop',
+				label  : 'move tab from foreign window',
 				getSourceWindow : function() {
 					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
 					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
@@ -533,7 +529,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 			'TabbarOperations',
 			window,
 			(targetEntry = {
-				label  : 'move tab on drop',
+				label  : 'move tab to foreign window',
 				getSourceWindow : function() {
 					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
 					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
@@ -549,16 +545,16 @@ Application.console.log('onTabMove redo '+aInfo.level);
 							sourceWindow.setTimeout(function() {
 								var targetBrowser = sourceWindow.gBrowser;
 								newTabs = newTabs.map(function(aTab) {
-									var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+									var newTab = window.UndoTabService.importTab(aTab, targetBrowser);
 									targetBrowser.moveTabTo(newTab, sourceIndex);
 									if (sourceIsSelected)
 										targetBrowser.selectedTab = newTab;
 									return newTab;
 								});
-								window.UndoTabOpsService.getTabsArray(targetBrowser)
+								window.UndoTabService.getTabsArray(targetBrowser)
 									.forEach(function(aTab) {
 										if (newTabs.indexOf(aTab) < 0) {
-											window.UndoTabOpsService.makeTabUnrecoverable(aTab);
+											window.UndoTabService.makeTabUnrecoverable(aTab);
 											targetBrowser.removeTab(aTab);
 										}
 									});
@@ -578,7 +574,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 						let targetBrowser = sourceBrowser;
 
 						newTabs = newTabs.map(function(aTab) {
-							var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+							var newTab = window.UndoTabService.importTab(aTab, targetBrowser);
 							targetBrowser.moveTabTo(newTab, sourceIndex);
 							if (sourceIsSelected)
 								targetBrowser.selectedTab = newTab;
@@ -593,7 +589,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 					var targetBrowser = aTabBrowser;
 
 					newTabs = newTabs.map(function(aTab) {
-						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+						var newTab = window.UndoTabService.importTab(aTab, targetBrowser);
 						targetBrowser.moveTabTo(newTab, sourceIndex);
 						if (sourceIsSelected)
 							targetBrowser.selectedTab = newTab;
@@ -625,7 +621,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 				label  : 'new tab on drop',
 				onUndo : function() {
 					newTabs.forEach(function(aTab) {
-						UndoTabOpsService.makeTabUnrecoverable(aTab);
+						UndoTabService.makeTabUnrecoverable(aTab);
 						aTabBrowser.removeTab(aTab);
 					});
 					newTabs = [];
@@ -690,7 +686,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 					var browser = targetWindow.gBrowser;
 					var blank = browser.addTab();
 
-					draggedTab = window.UndoTabOpsService.importTab(browser.selectedTab, aTabBrowser);
+					draggedTab = window.UndoTabService.importTab(browser.selectedTab, aTabBrowser);
 					aTabBrowser.moveTabTo(draggedTab, sourceIndex);
 					if (sourceIsSelected)
 						aTabBrowser.selectedTab = draggedTab;
@@ -723,7 +719,7 @@ Application.console.log('onTabMove redo '+aInfo.level);
 	}
   
 }; 
-UndoTabOpsService.__proto__ = window['piro.sakura.ne.jp'].prefs;
+UndoTabService.__proto__ = window['piro.sakura.ne.jp'].prefs;
 
-window.addEventListener('load', UndoTabOpsService, false);
+window.addEventListener('load', UndoTabService, false);
   
