@@ -1,0 +1,3 @@
+content	undotab	jar:chrome/undotab.jar!/content/undotab/
+
+overlay	chrome://browser/content/browser.xul	chrome://undotab/content/undotab.xul
