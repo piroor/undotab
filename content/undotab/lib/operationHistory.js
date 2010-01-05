@@ -75,6 +75,7 @@
 */
 (function() {
 	const currentRevision = 11;
+	const DEBUG = true;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -93,6 +94,11 @@
 
 	var Cc = Components.classes;
 	var Ci = Components.interfaces;
+
+	function log() {
+		if (DEBUG)
+			Application.console.log(Array.slice(arguments).join('\n'));
+	}
 
 	window['piro.sakura.ne.jp'].operationHistory = {
 		revision : currentRevision,
@@ -167,6 +173,7 @@
 
 		undo : function()
 		{
+			log('undo start');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			if (history.index < 0 || this._doingUndo)
@@ -179,8 +186,10 @@
 			{
 				let entry = history.entries[history.index--];
 				if (!entry) continue;
+				log('undo '+(history.index+1)+' '+entry.label);
 				let done = false;
 				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
+					log('undo level '+(aIndex)+' '+aData.label);
 					let f = this._getAvailableFunction(aData.onUndo, aData.onundo, aData.undo);
 					try {
 						if (f) {
@@ -205,6 +214,7 @@
 				this._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry.data, done);
 			}
 			this._doingUndo = false;
+			log('undo finish');
 
 			if (error)
 				throw error;
@@ -214,6 +224,7 @@
 
 		redo : function()
 		{
+			log('undo start');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			var max = history.entries.length;
@@ -227,8 +238,10 @@
 			{
 				let entry = history.entries[++history.index];
 				if (!entry) continue;
+				log('redo '+(history.index)+' '+entry.label);
 				let done = false;
 				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
+					log('redo level '+(aIndex)+' '+aData.label);
 					let f = this._getAvailableFunction(aData.onRedo, aData.onredo, aData.redo);
 					let done = false;
 					try {
@@ -254,6 +267,7 @@
 				this._dispatchEvent('UIOperationGlobalHistoryRedo', options, entry.data, done);
 			}
 			this._doingUndo = false;
+			log('redo finish');
 
 			if (error)
 				throw error;
