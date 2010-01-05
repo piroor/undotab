@@ -128,6 +128,19 @@ var UndoTabOpsService = {
 	{
 		if ('_onDrop' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
+				/(if \(newIndex != draggedTab._tPos\)\s*\{)(this.moveTabTo\(([^;]*)\);)(\})/,
+				<![CDATA[
+					$1
+					UndoTabOpsService.moveTabOnDrop(
+						function() {
+							$2
+						},
+						this,
+						[$3]
+					);
+					$4
+				]]>
+			).replace(
 				/(newTab = this.addTab\("about:blank"\);.*this.selectedTab = newTab;)/,
 				<![CDATA[
 					UndoTabOpsService.importTabOnDrop(
@@ -203,6 +216,39 @@ var UndoTabOpsService = {
 				this.destroy();
 				break;
 		}
+	},
+ 
+	moveTabOnDrop : function(aTask, aTabBrowser, aTabMoveArgs) 
+	{
+		var tab      = aTabMoveArgs[0];
+		var newIndex = aTabMoveArgs[1];
+		var oldIndex = tab._tPos;
+
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				aTask.call(aTabBrowser);
+			},
+
+			'TabbarOperations',
+			window,
+			(targetEntry = {
+				label  : 'rearrange tab on drop',
+				onUndo : function() {
+					if (!tab || !tab.parentNode) {
+						tab = null;
+						return false;
+					}
+					aTabBrowser.moveTabTo(tab, oldIndex);
+				},
+				onRedo : function() {
+					if (!tab || !tab.parentNode) {
+						tab = null;
+						return false;
+					}
+					aTabBrowser.moveTabTo(tab, newIndex);
+				}
+			})
+		);
 	},
  
 	importTabOnDrop : function(aTask, aTabBrowser, aDraggedTab) 
