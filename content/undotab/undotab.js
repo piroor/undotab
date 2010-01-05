@@ -498,7 +498,7 @@ var UndoTabService = {
 							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
 							if (history.entries[history.index] == sourceEntry) {
 								targetWindow.setTimeout(function() {
-									targetWindow['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', targetWindow);
+									aInfo.manager.undo('TabbarOperations', targetWindow);
 								}, 0);
 								return;
 							}
@@ -515,7 +515,7 @@ var UndoTabService = {
 							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
 							if (history.entries[history.index] == sourceEntry) {
 								targetWindow.setTimeout(function() {
-									targetWindow['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', targetWindow);
+									aInfo.manager.redo('TabbarOperations', targetWindow);
 								}, 0);
 								return;
 							}
