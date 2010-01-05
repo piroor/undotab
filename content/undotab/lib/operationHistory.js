@@ -114,6 +114,7 @@
 
 		doUndoableTask : function()
 		{
+			log('doUndoableTask');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			var entries = history.entries;
@@ -125,14 +126,17 @@
 
 			var data = options.data;
 			if (!this._doingUndo && data) {
+				log('register entry to history');
 				let f = this._getAvailableFunction(data.onRedo, data.onredo, data.redo);
 				if (!f && !data.onRedo && !data.onredo && !data.redo && options.task)
 					data.onRedo = options.task;
 
 				if (wasInUndoableTask) {
+					log('top level');
 					entries[entries.length-1].children.push(data);
 				}
 				else {
+					log('child level');
 					entries = entries.slice(0, history.index+1);
 					entries.push({
 						__proto__ : data,

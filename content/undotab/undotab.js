@@ -155,18 +155,18 @@ var UndoTabService = {
 	{
 		if (!('gBrowser' in window)) return;
 
-		window.removeEventListener('load', this, false);
+		window.removeEventListener('DOMContentLoaded', this, false);
 		window.addEventListener('unload', this, false);
 
 		this.addPrefListener(this);
 
-		this.initTabBrowser(gBrowser);
+		this.initTabBrowser(document.getElementById('content'));
 	},
 	
 	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
 	{
 		eval('aTabBrowser.addTab = '+aTabBrowser.addTab.toSource().replace(
-			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+			/(([a-zA-Z0-9_]+).dispatchEvent\([^\)]+\);)/,
 			<![CDATA[
 				UndoTabService.onTabOpen(
 					function() {
@@ -196,7 +196,7 @@ var UndoTabService = {
 
 		if ('_beginRemoveTab' in aTabBrowser) {
 			eval('aTabBrowser._beginRemoveTab = '+aTabBrowser._beginRemoveTab.toSource().replace(
-				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+				/(([a-zA-Z0-9_]+).dispatchEvent\([^\)]+\);)/,
 				<![CDATA[
 					UndoTabService.onTabClose(
 						function() {
@@ -224,7 +224,7 @@ var UndoTabService = {
 		}
 
 		eval('aTabBrowser.moveTabTo = '+aTabBrowser.moveTabTo.toSource().replace(
-			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+			/(([a-zA-Z0-9_]+).dispatchEvent\(([^\)]+)\);)/,
 			<![CDATA[
 				UndoTabService.onTabMove(
 					function() {
@@ -262,6 +262,7 @@ var UndoTabService = {
 			));
 		}
 
+/*
 		if ('_onDragEnd' in aTabBrowser) {
 			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
 				/(this\.replaceTabWithWindow\(([^;]*)\);)/,
@@ -275,6 +276,25 @@ var UndoTabService = {
 						[$2]
 					);
 				]]>
+			));
+		}
+*/
+
+		if ('swapBrowsersAndCloseOther' in aTabBrowser) {
+			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
+				'{',
+				<![CDATA[{
+					UndoTabService.swapBrowsersAndCloseOther(
+						function() {
+				]]>
+			).replace(
+				/(\}\)?)$/,
+				<![CDATA[
+						},
+						this,
+						arguments
+					);
+				$1]]>
 			));
 		}
 
@@ -315,7 +335,7 @@ var UndoTabService = {
 	{
 		switch (aEvent.type)
 		{
-			case 'load':
+			case 'DOMContentLoaded':
 				this.init();
 				break;
 
@@ -644,6 +664,8 @@ var UndoTabService = {
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
 				var targetWindow = aTask.call(aTabBrowser, draggedTab);
+				if (!targetWindow) return; // canceled
+
 				targetWindow.addEventListener('load', function() {
 					targetWindow.removeEventListener('load', arguments.callee, false);
 					targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(targetWindow);
@@ -698,6 +720,64 @@ var UndoTabService = {
 			})
 		);
 	},
+ 
+	swapBrowsersAndCloseOther : function(aTask, aTabBrowser, aArgs) 
+	{
+		var targetTab = aArgs[0];
+		var targetTabIndex = targetTab._tPos;
+		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(targetTab.ownerDocument.defaultView);
+
+		var remoteTab = aArgs[1];
+		var remoteTabIndex = remoteTab._tPos;
+		var remoteId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(remoteTab.ownerDocument.defaultView);
+
+		var remoteIsSelected = remoteTab.selected;
+
+		var sourceEntry;
+		var targetEntry;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				aTask.call(aTabBrowser);
+			},
+
+			'TabbarOperations',
+			window,
+			(sourceEntry = {
+				label  : 'import tab from foreign window',
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+
+					var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
+					if (!remoteWindow) return false;
+
+					var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+					if (!targetWindow) return false;
+
+					var remoteService = remoteWindow.UndoTabService;
+
+					var remoteBrowser = remoteWindow.gBrowser;
+					var targetTab = UndoTabService.getTabAt(targetTabIndex, aTabBrowser);
+
+					var isLast = UndoTabService.getTabs(aTabBrowser).snapshotLength == 1;
+					if (isLast)
+						aTabBrowser.addTab();
+
+					var remoteTab = remoteWindow.UndoTabService.importTab(targetTab, remoteBrowser);
+					remoteBrowser.moveTabTo(remoteTab, remoteTabIndex);
+					if (remoteIsSelected)
+						remoteBrowser.selectedTab = remoteTab;
+
+					if (isLast)
+						window.setTimeout(function() {
+							window.close();
+						}, 0);
+				}
+			})
+		);
+
+		targetTab = null;
+		remoteTab = null;
+	},
   
 /* Pref Listener */ 
 	
@@ -721,5 +801,5 @@ var UndoTabService = {
 }; 
 UndoTabService.__proto__ = window['piro.sakura.ne.jp'].prefs;
 
-window.addEventListener('load', UndoTabService, false);
+window.addEventListener('DOMContentLoaded', UndoTabService, false);
   
