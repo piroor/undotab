@@ -302,6 +302,7 @@ var UndoTabOpsService = {
  
 	onTabOpen : function(aTask, aTabBrowser, aTab, aArguments) 
 	{
+Application.console.log('onTabOpen');
 		var newTab = aTab;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
@@ -313,6 +314,7 @@ var UndoTabOpsService = {
 			(targetEntry = {
 				label  : 'open new tab',
 				onUndo : function(aInfo) {
+Application.console.log('onTabOpen undo '+aInfo.level);
 					if (!newTab || !newTab.parentNode) {
 						newTab = null;
 						return false;
@@ -322,6 +324,7 @@ var UndoTabOpsService = {
 					aTabBrowser.removeTab(newTab);
 				},
 				onRedo : function(aInfo) {
+Application.console.log('onTabOpen redo '+aInfo.level);
 					if (aInfo.level)
 						return false;
 					newTab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
@@ -332,6 +335,7 @@ var UndoTabOpsService = {
  
 	onTabClose : function(aTask, aTabBrowser, aTab) 
 	{
+Application.console.log('onTabClose');
 		var position = aTab._tPos;
 		var state = this.SessionStore.getTabState(aTab);
 		var newTab;
@@ -346,6 +350,7 @@ var UndoTabOpsService = {
 			(targetEntry = {
 				label  : 'open new tab',
 				onUndo : function(aInfo) {
+Application.console.log('onTabClose undo '+aInfo.level);
 					if (aInfo.level)
 						return false;
 					newTab = aTabBrowser.addTab('about:blank');
@@ -353,6 +358,7 @@ var UndoTabOpsService = {
 					aTabBrowser.moveTabTo(newTab, position);
 				},
 				onRedo : function(aInfo) {
+Application.console.log('onTabClose redo '+aInfo.level);
 					if (aInfo.level || !newTab)
 						return false;
 					UndoTabOpsService.makeTabUnrecoverable(newTab);
@@ -365,6 +371,7 @@ var UndoTabOpsService = {
  
 	onTabMove : function(aTask, aTabBrowser, aTab, aOldPosition) 
 	{
+Application.console.log('onTabMove');
 		var newIndex = aTab._tPos;
 		var oldIndex = aOldPosition;
 
@@ -378,6 +385,7 @@ var UndoTabOpsService = {
 			(targetEntry = {
 				label  : 'rearrange tab',
 				onUndo : function(aInfo) {
+Application.console.log('onTabMove undo '+aInfo.level);
 					if (!aTab || !aTab.parentNode) {
 						aTab = null;
 						return false;
@@ -387,6 +395,7 @@ var UndoTabOpsService = {
 					aTabBrowser.moveTabTo(aTab, oldIndex);
 				},
 				onRedo : function(aInfo) {
+Application.console.log('onTabMove redo '+aInfo.level);
 					if (!aTab || !aTab.parentNode) {
 						aTab = null;
 						return false;
