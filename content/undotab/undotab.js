@@ -43,13 +43,78 @@ var UndoTabOpsService = {
 		return xpathResult;
 	},
  
+	getArrayFromXPathResult : function UT_getArrayFromXPathResult(aXPathResult) 
+	{
+		if (!(aXPathResult instanceof Components.interfaces.nsIDOMXPathResult)) {
+			aXPathResult = this.evaluateXPath.apply(this, arguments);
+		}
+		var max = aXPathResult.snapshotLength;
+		var array = new Array(max);
+		if (!max) return array;
+
+		for (var i = 0; i < max; i++)
+		{
+			array[i] = aXPathResult.snapshotItem(i);
+		}
+
+		return array;
+	},
+ 
+	getTabBrowserFromChild : function UT_getTabBrowserFromChild(aTab) 
+	{
+		return this.evaluateXPath(
+				'ancestor-or-self::xul:tabbrowser',
+				aTab,
+				XPathResult.FIRST_ORDERED_NODE_TYPE
+			).singleNodeValue;
+	},
+ 
+	getTabs : function UT_getTabs(aTabBrowser) 
+	{
+		return this.evaluateXPath(
+				'descendant::xul:tab',
+				aTabBrowser.mTabContainer
+			);
+	},
+ 
+	getTabsArray : function UT_getTabsArray(aTabBrowser) 
+	{
+		return this.getArrayFromXPathResult(this.getTabs(aTabBrowser));
+	},
+ 
+	importTab : function UT_importTab(aTab, aTabBrowser) 
+	{
+		var newTab = aTabBrowser.addTab('about:blank');
+		var browser = newTab.linkedBrowser;
+		browser.stop();
+		browser.docShell;
+		aTabBrowser.swapBrowsersAndCloseOther(newTab, aTab);
+		aTabBrowser.setTabTitle(newTab);
+		return newTab;
+	},
+ 
+	makeTabUnrecoverable : function UT_makeTabUnrecoverable(aTab) 
+	{
+		// nsSessionStore.js doesn't save the tab to the undo cache
+		// if the tab is completely blank.
+		var b = aTab.linkedBrowser;
+		try {
+			b.stop();
+			if (b.sessionHistory)
+				b.sessionHistory.PurgeHistory(b.sessionHistory.count);
+		}
+		catch(e) {
+			dump(e+'\n');
+		}
+		if (b.contentWindow && b.contentWindow.location)
+			b.contentWindow.location.replace('about:blank');
+	},
+ 
 /* Initializing */ 
 	
 	init : function UT_init() 
 	{
 		if (!('gBrowser' in window)) return;
-
-		window.addEventListener('mouseup', this, true);
 
 		window.removeEventListener('load', this, false);
 		window.addEventListener('unload', this, false);
@@ -61,29 +126,29 @@ var UndoTabOpsService = {
 	
 	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
 	{
-		aTabBrowser.addEventListener('TabOpen', this, true);
-		aTabBrowser.addEventListener('TabClose', this, true);
-		aTabBrowser.addEventListener('TabMove', this, true);
-		aTabBrowser.mTabContainer.addEventListener('draggesture', this, true);
-		aTabBrowser.mTabContainer.addEventListener('mouseover',   this, true);
-		aTabBrowser.mTabContainer.addEventListener('mousemove',   this, true);
-		aTabBrowser.mTabContainer.addEventListener('mousedown',   this, true);
-
 		if ('_onDrop' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
-				/(this\.swapBrowsersAndCloseOther\([^;]+\);)/,
-				'UndoTabOpsService.fireWindowMoveEvent(newTab, draggedTab); $1'
+				/(newTab = this.addTab\("about:blank"\);.*this.selectedTab = newTab;)/,
+				<![CDATA[
+					UndoTabOpsService.importTabOnDrop(
+						function() {
+							$1
+						},
+						this,
+						draggedTab
+					);
+				]]>
+			).replace(
+				/(newTab = this.loadOneTab\([^;]*\);.*this.moveTabTo\([^;]*\);)/,
+				<![CDATA[
+					UndoTabOpsService.openNewTabOnDrop(
+						function() {
+							$1
+						},
+						this
+					);
+				]]>
 			));
-			aTabBrowser.__multipletab__canDoWindowMove = true;
-		}
-		else {
-			if ('onDrop' in aTabBrowser) {
-				eval('aTabBrowser.onDrop = '+aTabBrowser.onDrop.toSource().replace(
-					/(this\.duplicateTab\([^\)]+)(\))/g,
-					'$1, aEvent$2'
-				));
-			}
-			aTabBrowser.__multipletab__canDoWindowMove = false;
 		}
 
 		if ('_onDragEnd' in aTabBrowser) {
@@ -114,20 +179,10 @@ var UndoTabOpsService = {
 		this.getTabsArray(gBrowser).forEach(function(aTab) {
 			this.destroyTab(aTab);
 		}, this);
-
-		var tabContextMenu = document.getAnonymousElementByAttribute(gBrowser, 'anonid', 'tabContextMenu');
-		tabContextMenu.removeEventListener('popupshowing', this, false);
 	},
 	
 	destroyTabBrowser : function UT_destroyTabBrowser(aTabBrowser) 
 	{
-		aTabBrowser.removeEventListener('TabOpen', this, true);
-		aTabBrowser.removeEventListener('TabClose', this, true);
-		aTabBrowser.removeEventListener('TabMove', this, true);
-		aTabBrowser.mTabContainer.removeEventListener('draggesture', this, true);
-		aTabBrowser.mTabContainer.removeEventListener('mouseover',   this, true);
-		aTabBrowser.mTabContainer.removeEventListener('mousemove',   this, true);
-		aTabBrowser.mTabContainer.removeEventListener('mousedown',   this, true);
 	},
  
 	destroyTab : function UT_destroyTab(aTab) 
@@ -148,6 +203,154 @@ var UndoTabOpsService = {
 				this.destroy();
 				break;
 		}
+	},
+ 
+	importTabOnDrop : function(aTask, aTabBrowser, aDraggedTab) 
+	{
+		var sourceWindow = aDraggedTab.ownerDocument.defaultView;
+		var sourceBrowser = this.getTabBrowserFromChild(aDraggedTab);
+		var sourceId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(sourceWindow);
+		var sourceIndex = aDraggedTab._tPos;
+		var sourceIsSelected = aDraggedTab.selected;
+
+		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
+
+		var newTabs;
+		var targetEntry;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var beforeTabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				aTask.call(aTabBrowser);
+				var tabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				newTabs = tabs.filter(function(aTab) {
+								return beforeTabs.indexOf(aTab) < 0;
+							});
+			},
+
+			'TabbarOperations',
+			window,
+			(targetEntry = {
+				label  : 'move tab on drop',
+				getSourceWindow : function() {
+					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
+					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
+						sourceBrowser = null;
+					}
+					return sourceWindow;
+				},
+				onUndo : function() {
+					var sourceWindow = this.getSourceWindow();
+					if (!sourceWindow) return false;
+
+					var targetBrowser = sourceBrowser;
+
+					newTabs = newTabs.map(function(aTab) {
+						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+						targetBrowser.moveTabTo(newTab, sourceIndex);
+						if (sourceIsSelected)
+							targetBrowser.selectedTab = newTab;
+						return newTab;
+					});
+				},
+				onRedo : function() {
+					var sourceWindow = this.getSourceWindow();
+					if (!sourceWindow) return false;
+
+					var targetBrowser = aTabBrowser;
+
+					newTabs = newTabs.map(function(aTab) {
+						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+						targetBrowser.moveTabTo(newTab, sourceIndex);
+						if (sourceIsSelected)
+							targetBrowser.selectedTab = newTab;
+						return newTab;
+					});
+				}
+			})
+		);
+
+		var sourceEntry;
+		sourceWindow['piro.sakura.ne.jp'].operationHistory.addEntry(
+			'TabbarOperations',
+			sourceWindow,
+			(sourceEntry = {
+				label  : 'move tab on drop',
+				getSourceWindow : function() {
+					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
+					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
+						sourceBrowser = null;
+					}
+					return sourceWindow;
+				},
+				getTargetWindow : function() {
+					var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+					if (!targetWindow || targetWindow.closed || !aTabBrowser) {
+						aTabBrowser = null;
+					}
+					return targetWindow;
+				},
+				onUndo : function() {
+					var sourceWindow = this.getSourceWindow();
+					var targetWindow = this.getTargetWindow();
+					if (!sourceWindow || !targetWindow) return false;
+
+					var history = targetWindow['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', targetWindow);
+					if (history.entries[history.index] == targetEntry) {
+						targetWindow.setTimeout(function() {
+							targetWindow['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', targetWindow);
+						}, 0);
+						return;
+					}
+
+					return false;
+				},
+				onRedo : function() {
+					var sourceWindow = this.getSourceWindow();
+					var targetWindow = this.getTargetWindow();
+					if (!sourceWindow || !targetWindow) return false;
+
+					var history = targetWindow['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', targetWindow);
+					if (history.entries[history.index] == targetEntry) {
+						targetWindow.setTimeout(function() {
+							targetWindow['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', targetWindow);
+						}, 0);
+						return;
+					}
+
+					return false;
+				}
+			})
+		);
+
+		sourceWindow = null;
+	},
+ 
+	openNewTabOnDrop : function(aTask, aTabBrowser) 
+	{
+		var newTabs;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var beforeTabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				aTask.call(aTabBrowser);
+				var tabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				newTabs = tabs.filter(function(aTab) {
+								return beforeTabs.indexOf(aTab) < 0;
+							});
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : 'new tab on drop',
+				onUndo : function() {
+					newTabs.forEach(function(aTab) {
+						UndoTabOpsService.makeTabUnrecoverable(aTab);
+						aTabBrowser.removeTab(aTab);
+					});
+					newTabs = [];
+				}
+			}
+		);
 	},
   
 /* Pref Listener */ 
