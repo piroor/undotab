@@ -2,7 +2,7 @@ var UndoTabOpsService = {
 	PREFROOT : 'extensions.undotab@piro.sakura.ne.jp',
 	
 	NSResolver : { 
-		lookupNamespaceURI : function MTS_lookupNamespaceURI(aPrefix)
+		lookupNamespaceURI : function UT_lookupNamespaceURI(aPrefix)
 		{
 			switch (aPrefix)
 			{
@@ -18,7 +18,7 @@ var UndoTabOpsService = {
 			}
 		}
 	},
-	evaluateXPath : function MTS_evaluateXPath(aExpression, aContext, aType)
+	evaluateXPath : function UT_evaluateXPath(aExpression, aContext, aType)
 	{
 		if (!aType) aType = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
 		try {
@@ -35,7 +35,7 @@ var UndoTabOpsService = {
 			return {
 				singleNodeValue : null,
 				snapshotLength  : 0,
-				snapshotItem    : function MTS_snapshotItem() {
+				snapshotItem    : function UT_snapshotItem() {
 					return null
 				}
 			};
@@ -45,69 +45,21 @@ var UndoTabOpsService = {
  
 /* Initializing */ 
 	
-	init : function MTS_init() 
+	init : function UT_init() 
 	{
 		if (!('gBrowser' in window)) return;
 
 		window.addEventListener('mouseup', this, true);
 
 		window.removeEventListener('load', this, false);
-		window.addEventListener('unload', UndoTabOpsService, false);
+		window.addEventListener('unload', this, false);
 
-		this.migratePrefs();
 		this.addPrefListener(this);
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.tabdrag.mode');
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.tabclick.accel.mode');
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.tabclick.shift.mode');
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.selectionStyle');
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.clipboard.linefeed');
-		this.observe(null, 'nsPref:changed', 'extensions.multipletab.clipboard.formats');
-
-/*
-		if ('nsDragAndDrop' in window &&
-			'startDrag' in nsDragAndDrop) {
-			eval('nsDragAndDrop.startDrag = '+nsDragAndDrop.startDrag.toSource().replace(
-				/(invokeDragSessionWithImage\([^\)]+,\s*)null\s*,\s*0,\s*0(\s*,[^\)]+\))/,
-				'$1UndoTabOpsService.createDragFeedbackImage(aEvent.target), UndoTabOpsService.getDragFeedbackImageX(aEvent.target), UndoTabOpsService.getDragFeedbackImageY(aEvent.target)$2'
-			));
-		}
-*/
-
-		if ('internalSave' in window) {
-			eval('window.internalSave = '+window.internalSave.toSource().replace(
-				'var useSaveDocument =',
-				<![CDATA[
-					if (aChosenData && 'saveAsType' in aChosenData) {
-						saveAsType = aChosenData.saveAsType;
-						saveMode = SAVEMODE_FILEONLY | SAVEMODE_COMPLETE_TEXT;
-					}
-				$&]]>
-			).replace(
-				/(!aChosenData)( && useSaveDocument && saveAsType == kSaveAsType_Text)/,
-				'($1 || "saveAsType" in aChosenData)$2'
-			));
-		}
-
-		[
-			'tm-freezeTab\tmultipletab-selection-freezeTabs',
-			'tm-protectTab\tmultipletab-selection-protectTabs',
-			'tm-lockTab\tmultipletab-selection-lockTabs'
-		].forEach(function(aIDs) {
-			aIDs = aIDs.split('\t');
-			var source = document.getElementById(aIDs[0]);
-			var target = document.getElementById(aIDs[1]);
-			if (source)
-				target.setAttribute('label', source.getAttribute('label'));
-		}, this);
 
 		this.initTabBrowser(gBrowser);
-
-		this.overrideExtensionsOnInit(); // hacks.js
-
-		window.setTimeout(function(aSelf) { aSelf.delayedInit(); }, 0, this);
 	},
 	
-	initTabBrowser : function MTS_initTabBrowser(aTabBrowser) 
+	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
 	{
 		aTabBrowser.addEventListener('TabOpen', this, true);
 		aTabBrowser.addEventListener('TabClose', this, true);
@@ -146,11 +98,11 @@ var UndoTabOpsService = {
 		}, this);
 	},
  
-	initTab : function MTS_initTab(aTab) 
+	initTab : function UT_initTab(aTab) 
 	{
 	},
   
-	destroy : function MTS_destroy() 
+	destroy : function UT_destroy() 
 	{
 		this.destroyTabBrowser(gBrowser);
 		window.addEventListener('mouseup', this, true);
@@ -167,7 +119,7 @@ var UndoTabOpsService = {
 		tabContextMenu.removeEventListener('popupshowing', this, false);
 	},
 	
-	destroyTabBrowser : function MTS_destroyTabBrowser(aTabBrowser) 
+	destroyTabBrowser : function UT_destroyTabBrowser(aTabBrowser) 
 	{
 		aTabBrowser.removeEventListener('TabOpen', this, true);
 		aTabBrowser.removeEventListener('TabClose', this, true);
@@ -178,13 +130,13 @@ var UndoTabOpsService = {
 		aTabBrowser.mTabContainer.removeEventListener('mousedown',   this, true);
 	},
  
-	destroyTab : function MTS_destroyTab(aTab) 
+	destroyTab : function UT_destroyTab(aTab) 
 	{
 	},
    
 /* Event Handling */ 
 	
-	handleEvent : function MTS_handleEvent(aEvent) 
+	handleEvent : function UT_handleEvent(aEvent) 
 	{
 		switch (aEvent.type)
 		{
@@ -202,7 +154,7 @@ var UndoTabOpsService = {
 	
 	domain : 'extensions.undotab', 
  
-	observe : function MTS_observe(aSubject, aTopic, aPrefName) 
+	observe : function UT_observe(aSubject, aTopic, aPrefName) 
 	{
 		if (aTopic != 'nsPref:changed') return;
 
