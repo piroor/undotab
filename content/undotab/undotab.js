@@ -110,6 +110,16 @@ var UndoTabOpsService = {
 			b.contentWindow.location.replace('about:blank');
 	},
  
+	undo : function()
+	{
+		return window['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', window);
+	},
+ 
+	redo : function()
+	{
+		return window['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', window);
+	},
+ 
 /* Initializing */ 
 	
 	init : function UT_init() 
@@ -126,21 +136,36 @@ var UndoTabOpsService = {
 	
 	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
 	{
+		eval('aTabBrowser.addTab = '+aTabBrowser.addTab.toSource().replace(
+			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+			<![CDATA[
+				UndoTabOpsService.onTabOpen(
+					function() {
+						$1
+					},
+					this,
+					$2,
+					arguments
+				);
+			]]>
+		));
+
+		eval('aTabBrowser.moveTabTo = '+aTabBrowser.moveTabTo.toSource().replace(
+			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+			<![CDATA[
+				UndoTabOpsService.onTabMove(
+					function() {
+						$1
+					},
+					this,
+					$2,
+					$3.detail
+				);
+			]]>
+		));
+
 		if ('_onDrop' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
-				/(if \(newIndex != draggedTab._tPos\)\s*\{)(this.moveTabTo\(([^;]*)\);)(\})/,
-				<![CDATA[
-					$1
-					UndoTabOpsService.moveTabOnDrop(
-						function() {
-							$2
-						},
-						this,
-						[$3]
-					);
-					$4
-				]]>
-			).replace(
 				/(newTab = this.addTab\("about:blank"\);.*this.selectedTab = newTab;)/,
 				<![CDATA[
 					UndoTabOpsService.importTabOnDrop(
@@ -227,11 +252,40 @@ var UndoTabOpsService = {
 		}
 	},
  
-	moveTabOnDrop : function(aTask, aTabBrowser, aTabMoveArgs) 
+	onTabOpen : function(aTask, aTabBrowser, aTab, aArguments) 
 	{
-		var tab      = aTabMoveArgs[0];
-		var newIndex = aTabMoveArgs[1];
-		var oldIndex = tab._tPos;
+		var newTab = aTab;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				aTask.call(aTabBrowser);
+			},
+
+			'TabbarOperations',
+			window,
+			(targetEntry = {
+				label  : 'open new tab',
+				onUndo : function(aInfo) {
+					if (!newTab || !newTab.parentNode) {
+						newTab = null;
+						return false;
+					}
+					if (aInfo.level)
+						return false;
+					aTabBrowser.removeTab(newTab);
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level)
+						return false;
+					newTab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
+				}
+			})
+		);
+	},
+ 
+	onTabMove : function(aTask, aTabBrowser, aTab, aOldPosition) 
+	{
+		var newIndex = aTab._tPos;
+		var oldIndex = aOldPosition;
 
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
@@ -241,20 +295,24 @@ var UndoTabOpsService = {
 			'TabbarOperations',
 			window,
 			(targetEntry = {
-				label  : 'rearrange tab on drop',
-				onUndo : function() {
-					if (!tab || !tab.parentNode) {
-						tab = null;
+				label  : 'rearrange tab',
+				onUndo : function(aInfo) {
+					if (!aTab || !aTab.parentNode) {
+						aTab = null;
 						return false;
 					}
-					aTabBrowser.moveTabTo(tab, oldIndex);
+					if (aInfo.level)
+						return false;
+					aTabBrowser.moveTabTo(aTab, oldIndex);
 				},
-				onRedo : function() {
-					if (!tab || !tab.parentNode) {
-						tab = null;
+				onRedo : function(aInfo) {
+					if (!aTab || !aTab.parentNode) {
+						aTab = null;
 						return false;
 					}
-					aTabBrowser.moveTabTo(tab, newIndex);
+					if (aInfo.level)
+						return false;
+					aTabBrowser.moveTabTo(aTab, newIndex);
 				}
 			})
 		);
