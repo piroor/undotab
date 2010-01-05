@@ -480,10 +480,10 @@ var UndoTabService = {
 		var sourceEntry;
 		var targetEntry;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
-			function() {
+			function(aInfo) {
 				aTask.call(aTabBrowser);
-				var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
-				remoteWindow['piro.sakura.ne.jp'].operationHistory.addEntry(
+				var remoteWindow = aInfo.manager.getWindowById(remoteId);
+				aInfo.manager.addEntry(
 					'TabbarOperations',
 					remoteWindow,
 					{
@@ -491,11 +491,11 @@ var UndoTabService = {
 						onUndo : function(aInfo) {
 							if (aInfo.level) return;
 
-							var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
-							var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+							var remoteWindow = aInfo.manager.getWindowById(remoteId);
+							var targetWindow = aInfo.manager.getWindowById(targetId);
 							if (!remoteWindow || !targetWindow) return false;
 
-							var history = targetWindow['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', targetWindow);
+							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
 							if (history.entries[history.index] == sourceEntry) {
 								targetWindow.setTimeout(function() {
 									targetWindow['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', targetWindow);
@@ -508,11 +508,11 @@ var UndoTabService = {
 						onRedo : function(aInfo) {
 							if (aInfo.level) return;
 
-							var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
-							var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+							var remoteWindow = aInfo.manager.getWindowById(remoteId);
+							var targetWindow = aInfo.manager.getWindowById(targetId);
 							if (!remoteWindow || !targetWindow) return false;
 
-							var history = targetWindow['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', targetWindow);
+							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
 							if (history.entries[history.index] == sourceEntry) {
 								targetWindow.setTimeout(function() {
 									targetWindow['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', targetWindow);
@@ -533,8 +533,8 @@ var UndoTabService = {
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 
-					var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
-					var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+					var remoteWindow = aInfo.manager.getWindowById(remoteId);
+					var targetWindow = aInfo.manager.getWindowById(targetId);
 					if (!remoteWindow || !targetWindow) return false;
 
 					var remoteService = remoteWindow.UndoTabService;
@@ -559,8 +559,8 @@ var UndoTabService = {
 				onRedo : function(aInfo) {
 					if (aInfo.level) return;
 
-					var remoteWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(remoteId);
-					var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+					var remoteWindow = aInfo.manager.getWindowById(remoteId);
+					var targetWindow = aInfo.manager.getWindowById(targetId);
 					if (!remoteWindow || !targetWindow) return false;
 
 					var remoteService = remoteWindow.UndoTabService;

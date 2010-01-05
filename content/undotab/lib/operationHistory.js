@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 11;
+	const currentRevision = 12;
 	const DEBUG = true;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
@@ -152,7 +152,15 @@
 
 			try {
 				if (options.task)
-					options.task.call(this);
+					options.task.call(
+						this,
+						{
+							level   : 0,
+							parent  : null,
+							done    : false,
+							manager : this
+						}
+					);
 			}
 			catch(e) {
 				error = e;
@@ -198,9 +206,10 @@
 					try {
 						if (f) {
 							let info = {
-									level  : aIndex,
-									parent : (aIndex ? entry.data : null ),
-									done   : processed && done
+									level   : aIndex,
+									parent  : (aIndex ? entry.data : null ),
+									done    : processed && done,
+									manager : this
 								};
 							let oneProcessed = f.call(aData, info);
 							done = true;
@@ -251,9 +260,10 @@
 					try {
 						if (f) {
 							let info = {
-									level  : aIndex,
-									parent : (aIndex ? entry.data : null ),
-									done   : processed && done
+									level   : aIndex,
+									parent  : (aIndex ? entry.data : null ),
+									done    : processed && done,
+									manager : this
 								};
 							let oneProcessed = f.call(aData, info);
 							done = true;
