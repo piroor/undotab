@@ -166,8 +166,17 @@ var UndoTabOpsService = {
 
 		if ('_onDragEnd' in aTabBrowser) {
 			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
-				/(this\._?replaceTabWithWindow\()/,
-				'if (UndoTabOpsService.isDraggingAllTabs(draggedTab)) return; $1'
+				/(this\.replaceTabWithWindow\(([^;]*)\);)/,
+				<![CDATA[
+					UndoTabOpsService.replaceTabWithWindow(
+						function(aDraggedTab) {
+							draggedTab = aDraggedTab;
+							return $1
+						},
+						this,
+						[$2]
+					);
+				]]>
 			));
 		}
 
@@ -400,7 +409,6 @@ var UndoTabOpsService = {
 			})
 		);
 
-
 		sourceWindow = null;
 	},
  
@@ -429,6 +437,75 @@ var UndoTabOpsService = {
 					newTabs = [];
 				}
 			}
+		);
+	},
+ 
+	replaceTabWithWindow : function(aTask, aTabBrowser, aArgs) 
+	{
+		var targetId;
+		var draggedTab = aArgs[0];
+
+		var sourceId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
+		var sourceIndex = draggedTab._tPos;
+		var sourceIsSelected = draggedTab.selected;
+
+		var sourceEntry;
+		var targetEntry;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var targetWindow = aTask.call(aTabBrowser, draggedTab);
+				targetWindow.addEventListener('load', function() {
+					targetWindow.removeEventListener('load', arguments.callee, false);
+					targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(targetWindow);
+					targetWindow['piro.sakura.ne.jp'].operationHistory.addEntry(
+						'TabbarOperations',
+						targetWindow,
+						{
+							label  : 'split tab to a new window',
+							onUndo : function() {
+								var sourceWindow = targetWindow['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
+								if (!sourceWindow ||
+									!aTabBrowser ||
+									!aTabBrowser.parentNode ||
+									!targetEntry)
+									return false;
+
+								var history = targetWindow['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', targetWindow);
+								if (history.entries[history.index] == sourceEntry) {
+									targetWindow.setTimeout(function() {
+										targetWindow['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', targetWindow);
+									}, 0);
+									return;
+								}
+
+								sourceEntry.onUndo();
+							}
+						}
+					);
+				}, false);
+			},
+
+			'TabbarOperations',
+			window,
+			(sourceEntry = {
+				label  : 'split tab to a new window',
+				onUndo : function() {
+					var targetWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(targetId);
+					if (!targetWindow) return false;
+
+					var browser = targetWindow.gBrowser;
+					var blank = browser.addTab();
+
+					draggedTab = window.UndoTabOpsService.importTab(browser.selectedTab, aTabBrowser);
+					aTabBrowser.moveTabTo(draggedTab, sourceIndex);
+					if (sourceIsSelected)
+						aTabBrowser.selectedTab = draggedTab;
+
+					targetWindow.setTimeout(function() {
+						targetWindow.close();
+					}, 0);
+				}
+			})
 		);
 	},
   
