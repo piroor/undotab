@@ -446,7 +446,8 @@ var UndoTabService = {
 	{
 		var newTabIndex = -1;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
-			function() {
+			function(aInfo) {
+				if (aInfo && aInfo.level) return;
 				newTabIndex = aTask.call(aTabBrowser)._tPos;
 			},
 
