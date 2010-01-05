@@ -540,9 +540,9 @@ var UndoTabService = {
 					var remoteService = remoteWindow.UndoTabService;
 
 					var remoteBrowser = remoteWindow.gBrowser;
-					var targetTab = UndoTabService.getTabAt(targetTabIndex, aTabBrowser);
+					var targetTab = targetWindow.UndoTabService.getTabAt(targetTabIndex, aTabBrowser);
 
-					var isLast = UndoTabService.getTabs(aTabBrowser).snapshotLength == 1;
+					var isLast = targetWindow.UndoTabService.getTabs(aTabBrowser).snapshotLength == 1;
 					if (isLast)
 						aTabBrowser.addTab();
 
@@ -566,9 +566,9 @@ var UndoTabService = {
 					var remoteService = remoteWindow.UndoTabService;
 
 					var remoteBrowser = remoteWindow.gBrowser;
-					var remoteTab = UndoTabService.getTabAt(remoteTabIndex, remoteBrowser);
+					var remoteTab = remoteWindow.UndoTabService.getTabAt(remoteTabIndex, remoteBrowser);
 
-					var targetTab = remoteWindow.UndoTabService.importTab(remoteTab, aTabBrowser);
+					var targetTab = targetWindow.UndoTabService.importTab(remoteTab, aTabBrowser);
 					aTabBrowser.moveTabTo(targetTab, targetTabIndex);
 					if (remoteIsSelected)
 						aTabBrowser.selectedTab = targetTab;
