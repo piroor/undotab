@@ -1,6 +1,25 @@
 var UndoTabOpsService = { 
 	PREFROOT : 'extensions.undotab@piro.sakura.ne.jp',
 	
+	get SessionStore() { 
+		if (!this._SessionStore) {
+			this._SessionStore = Components.classes['@mozilla.org/browser/sessionstore;1'].getService(Components.interfaces.nsISessionStore);
+		}
+		return this._SessionStore;
+	},
+	_SessionStore : null,
+ 
+	evalInSandbox : function UT_evalInSandbox(aCode, aOwner) 
+	{
+		try {
+			var sandbox = new Components.utils.Sandbox(aOwner || 'about:blank');
+			return Components.utils.evalInSandbox(aCode, sandbox);
+		}
+		catch(e) {
+		}
+		return void(0);
+	},
+ 
 	NSResolver : { 
 		lookupNamespaceURI : function UT_lookupNamespaceURI(aPrefix)
 		{
@@ -150,6 +169,35 @@ var UndoTabOpsService = {
 			]]>
 		));
 
+		if ('_beginRemoveTab' in aTabBrowser) {
+			eval('aTabBrowser._beginRemoveTab = '+aTabBrowser._beginRemoveTab.toSource().replace(
+				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+				<![CDATA[
+					UndoTabOpsService.onTabClose(
+						function() {
+							$1
+						},
+						this,
+						$2
+					);
+				]]>
+			));
+		}
+		else {
+			eval('aTabBrowser.removeTab = '+aTabBrowser.removeTab.toSource().replace(
+				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+				<![CDATA[
+					UndoTabOpsService.onTabClose(
+						function() {
+							$1
+						},
+						this,
+						$2
+					);
+				]]>
+			));
+		}
+
 		eval('aTabBrowser.moveTabTo = '+aTabBrowser.moveTabTo.toSource().replace(
 			/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
 			<![CDATA[
@@ -277,6 +325,39 @@ var UndoTabOpsService = {
 					if (aInfo.level)
 						return false;
 					newTab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
+				}
+			})
+		);
+	},
+ 
+	onTabClose : function(aTask, aTabBrowser, aTab) 
+	{
+		var position = aTab._tPos;
+		var state = this.SessionStore.getTabState(aTab);
+		var newTab;
+
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				aTask.call(aTabBrowser);
+			},
+
+			'TabbarOperations',
+			window,
+			(targetEntry = {
+				label  : 'open new tab',
+				onUndo : function(aInfo) {
+					if (aInfo.level)
+						return false;
+					newTab = aTabBrowser.addTab('about:blank');
+					UndoTabOpsService.SessionStore.setTabState(newTab, state, false);
+					aTabBrowser.moveTabTo(newTab, position);
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level || !newTab)
+						return false;
+					UndoTabOpsService.makeTabUnrecoverable(newTab);
+					aTabBrowser.removeTab(newTab);
+					newTab = null;
 				}
 			})
 		);
