@@ -261,60 +261,6 @@ var UndoTabOpsService = {
 
 		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
 
-		var newTabs;
-		var targetEntry;
-		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
-			function() {
-				var beforeTabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
-				aTask.call(aTabBrowser);
-				var tabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
-				newTabs = tabs.filter(function(aTab) {
-								return beforeTabs.indexOf(aTab) < 0;
-							});
-			},
-
-			'TabbarOperations',
-			window,
-			(targetEntry = {
-				label  : 'move tab on drop',
-				getSourceWindow : function() {
-					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
-					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
-						sourceBrowser = null;
-					}
-					return sourceWindow;
-				},
-				onUndo : function() {
-					var sourceWindow = this.getSourceWindow();
-					if (!sourceWindow) return false;
-
-					var targetBrowser = sourceBrowser;
-
-					newTabs = newTabs.map(function(aTab) {
-						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
-						targetBrowser.moveTabTo(newTab, sourceIndex);
-						if (sourceIsSelected)
-							targetBrowser.selectedTab = newTab;
-						return newTab;
-					});
-				},
-				onRedo : function() {
-					var sourceWindow = this.getSourceWindow();
-					if (!sourceWindow) return false;
-
-					var targetBrowser = aTabBrowser;
-
-					newTabs = newTabs.map(function(aTab) {
-						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
-						targetBrowser.moveTabTo(newTab, sourceIndex);
-						if (sourceIsSelected)
-							targetBrowser.selectedTab = newTab;
-						return newTab;
-					});
-				}
-			})
-		);
-
 		var sourceEntry;
 		sourceWindow['piro.sakura.ne.jp'].operationHistory.addEntry(
 			'TabbarOperations',
@@ -367,6 +313,93 @@ var UndoTabOpsService = {
 				}
 			})
 		);
+
+		var isLastTab = this.getTabs(sourceBrowser).snapshotLength == 1;
+		var newTabs;
+		var targetEntry;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var beforeTabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				aTask.call(aTabBrowser);
+				var tabs = Array.slice(aTabBrowser.mTabContainer.childNodes);
+				newTabs = tabs.filter(function(aTab) {
+								return beforeTabs.indexOf(aTab) < 0;
+							});
+			},
+
+			'TabbarOperations',
+			window,
+			(targetEntry = {
+				label  : 'move tab on drop',
+				getSourceWindow : function() {
+					var sourceWindow = window['piro.sakura.ne.jp'].operationHistory.getWindowById(sourceId);
+					if (!sourceWindow || sourceWindow.closed || !sourceBrowser) {
+						sourceBrowser = null;
+					}
+					return sourceWindow;
+				},
+				onUndo : function() {
+					if (isLastTab) {
+						let sourceWindow = window.openDialog(location.href, '_blank', 'chrome,all,dialog=no', 'about:blank');
+						sourceWindow.addEventListener('load', function() {
+							sourceWindow.removeEventListener('load', arguments.callee, false);
+							sourceWindow.setTimeout(function() {
+								var targetBrowser = sourceWindow.gBrowser;
+								newTabs = newTabs.map(function(aTab) {
+									var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+									targetBrowser.moveTabTo(newTab, sourceIndex);
+									if (sourceIsSelected)
+										targetBrowser.selectedTab = newTab;
+									return newTab;
+								});
+								window.UndoTabOpsService.getTabsArray(targetBrowser)
+									.forEach(function(aTab) {
+										if (newTabs.indexOf(aTab) < 0) {
+											window.UndoTabOpsService.makeTabUnrecoverable(aTab);
+											targetBrowser.removeTab(aTab);
+										}
+									});
+								sourceId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(sourceWindow, sourceId);
+								sourceWindow['piro.sakura.ne.jp'].operationHistory.addEntry(
+									'TabbarOperations',
+									sourceWindow,
+									sourceEntry
+								);
+							}, 0);
+						}, false);
+					}
+					else {
+						let sourceWindow = this.getSourceWindow();
+						if (!sourceWindow) return false;
+
+						let targetBrowser = sourceBrowser;
+
+						newTabs = newTabs.map(function(aTab) {
+							var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+							targetBrowser.moveTabTo(newTab, sourceIndex);
+							if (sourceIsSelected)
+								targetBrowser.selectedTab = newTab;
+							return newTab;
+						});
+					}
+				},
+				onRedo : function() {
+					var sourceWindow = this.getSourceWindow();
+					if (!sourceWindow) return false;
+
+					var targetBrowser = aTabBrowser;
+
+					newTabs = newTabs.map(function(aTab) {
+						var newTab = window.UndoTabOpsService.importTab(aTab, targetBrowser);
+						targetBrowser.moveTabTo(newTab, sourceIndex);
+						if (sourceIsSelected)
+							targetBrowser.selectedTab = newTab;
+						return newTab;
+					});
+				}
+			})
+		);
+
 
 		sourceWindow = null;
 	},
