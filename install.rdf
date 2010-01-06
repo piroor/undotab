@@ -5,7 +5,7 @@
   <RDF:Description RDF:about="urn:mozilla:install-manifest"
                    em:id="undotab@piro.sakura.ne.jp"
                    em:name="Undo Tab Operations"
-                   em:version="0.1.2010010702"
+                   em:version="0.1.2010010703"
                    em:creator="SHIMODA Hiroshi"
                    em:description="Provides ability to undo any operations about tabs."
                    em:homepageURL="http://piro.sakura.ne.jp/xul/undotab/"
