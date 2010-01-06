@@ -2,5 +2,5 @@ content	undotab	jar:chrome/undotab.jar!/content/undotab/
 
 overlay	chrome://browser/content/browser.xul	chrome://undotab/content/undotab.xul
 
-locale	multipletab	en-US	jar:chrome/undotab.jar!/locale/en-US/undotab/
-locale	multipletab	ja	jar:chrome/undotab.jar!/locale/ja/undotab/
+locale	undotab	en-US	jar:chrome/undotab.jar!/locale/en-US/undotab/
+locale	undotab	ja	jar:chrome/undotab.jar!/locale/ja/undotab/
