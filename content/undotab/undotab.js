@@ -741,6 +741,13 @@ var UndoTabService = {
 						}, 0);
 					}
 					else {
+						let history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
+						if (this != entry && history.entries[history.index] == entry) {
+							targetWindow.setTimeout(function() {
+								aInfo.manager.undo('TabbarOperations', targetWindow);
+							}, 0);
+							return;
+						}
 						let remoteBrowser = remoteWindow.gBrowser;
 						let remoteTab = remoteWindow.UndoTabService.importTab(targetTab, remoteBrowser);
 						remoteBrowser.moveTabTo(remoteTab, remoteTabPosition);
@@ -754,6 +761,14 @@ var UndoTabService = {
 					var targetWindow = aInfo.manager.getWindowById(targetId);
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
 					if (!targetWindow || !remoteWindow) return false;
+
+					var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
+					if (this != entry && history.entries[history.index] == entry) {
+						targetWindow.setTimeout(function() {
+							aInfo.manager.redo('TabbarOperations', targetWindow);
+						}, 0);
+						return;
+					}
 
 					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
 					var remoteBrowser = remoteWindow.gBrowser;
@@ -820,7 +835,7 @@ var UndoTabService = {
 						aInfo.manager.addEntry(
 							'TabbarOperations',
 							newWindow,
-							entry
+							{ __proto__ : entry }
 						);
 						continuation();
 					}, 0);
@@ -837,6 +852,14 @@ var UndoTabService = {
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
 					var targetWindow = aInfo.manager.getWindowById(sourceId);
 					if (!targetWindow || !remoteWindow) return false;
+
+					var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
+					if (this != entry && history.entries[history.index] == entry) {
+						targetWindow.setTimeout(function() {
+							aInfo.manager.undo('TabbarOperations', targetWindow);
+						}, 0);
+						return;
+					}
 
 					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
 					var remoteTab = remoteWindow.gBrowser.selectedTab;
@@ -863,12 +886,14 @@ var UndoTabService = {
 							remoteWindow.removeEventListener('load', arguments.callee, false);
 							remoteId = aInfo.manager.getWindowId(remoteWindow);
 							remoteWindow.setTimeout(function() { // wait for tab swap
+								continuation();
+								// While redoing, addEntry() is ignored. So, we have to call
+								// continuation() before calling addEntry().
 								aInfo.manager.addEntry(
 									'TabbarOperations',
 									remoteWindow,
-									entry
+									{ __proto__ : entry }
 								);
-								continuation();
 							}, 0);
 						}, false);
 					}, 0);

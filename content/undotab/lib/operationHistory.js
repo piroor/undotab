@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 14;
+	const currentRevision = 15;
 	const DEBUG = true;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
@@ -96,8 +96,11 @@
 	var Ci = Components.interfaces;
 
 	function log() {
-		if (DEBUG)
-			Application.console.log(Array.slice(arguments).join('\n'));
+		if (!DEBUG) return;
+		Cc['@mozilla.org/fuel/application;1']
+			.getService(Ci.fuelIApplication)
+			.console
+			.log(Array.slice(arguments).join('\n'));
 	}
 
 	window['piro.sakura.ne.jp'].operationHistory = {
@@ -118,33 +121,37 @@
 			log('doUndoableTask start ('+options.name+' for '+options.windowId+')');
 			var history = options.history;
 			var entries = history.entries;
+			var metaData = history.metaData;
 			var error;
 			var wasInUndoableTask = history._inUndoableTask;
 
 			if (!wasInUndoableTask)
 				history._inUndoableTask = true;
 
-			var data = options.data;
-			if (!this._doingUndo && data) {
-				log('register new entry to history\n  '+data.label);
-				let f = this._getAvailableFunction(data.onRedo, data.onredo, data.redo);
-				if (!f && !data.onRedo && !data.onredo && !data.redo && options.task)
-					data.onRedo = options.task;
+			var entry = options.entry;
+			if (!this._doingUndo && entry) {
+				log('register new entry to history\n  '+entry.label);
+				let f = this._getAvailableFunction(entry.onRedo, entry.onredo, entry.redo);
+				if (!f && !entry.onRedo && !entry.onredo && !entry.redo && options.task)
+					entry.onRedo = options.task;
 
 				if (wasInUndoableTask) {
-					entries[entries.length-1].children.push(data);
-					log(' => child level ('+(entries[entries.length-1].children.length-1)+')');
+					metaData[metaData.length-1].children.push(entry);
+					log(' => child level ('+(metaData[metaData.length-1].children.length-1)+')');
 				}
 				else {
 					entries = entries.slice(0, history.index+1);
-					entries.push({
-						__proto__ : data,
-						data      : data,
-						children  : []
-					});
+					entries.push(entry);
 					entries = entries.slice(-this.MAX_ENTRIES);
 
+					metaData = metaData.slice(0, history.index+1);
+					metaData.push({
+						children  : []
+					});
+					metaData = metaData.slice(-this.MAX_ENTRIES);
+
 					history.entries = entries;
+					history.metaData = metaData;
 					history.index = entries.length;
 					log(' => top level ('+(entries.length-1)+')');
 				}
@@ -196,8 +203,9 @@
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			return {
-				entries : history.entries,
-				index   : Math.max(0, Math.min(history.entries.length-1, history.index))
+				entries  : history.entries,
+				metaData : history.metaData,
+				index    : Math.max(0, Math.min(history.entries.length-1, history.index))
 			};
 		},
 
@@ -216,13 +224,15 @@
 			var continuationCall = { called : false, allowed : false };
 			while (processed === false && history.index > -1)
 			{
-				let entry = history.entries[history.index--];
+				let entry = history.entries[history.index];
+				let metaData = history.metaData[history.index];
+				--history.index;
 				if (!entry) continue;
 				log('  '+(history.index+1)+' '+entry.label);
 				let done = false;
-				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
-					log('    level '+(aIndex)+' '+aData.label);
-					let f = this._getAvailableFunction(aData.onUndo, aData.onundo, aData.undo);
+				[entry].concat(metaData.children).forEach(function(aEntry, aIndex) {
+					log('    level '+(aIndex)+' '+aEntry.label);
+					let f = this._getAvailableFunction(aEntry.onUndo, aEntry.onundo, aEntry.undo);
 					try {
 						if (f) {
 							let info = {
@@ -241,7 +251,7 @@
 										return continuation;
 									}
 								};
-							let oneProcessed = f.call(aData, info);
+							let oneProcessed = f.call(aEntry, info);
 							done = true;
 							if (oneProcessed !== false)
 								processed = oneProcessed;
@@ -255,7 +265,7 @@
 						error = e;
 					}
 				}, this);
-				this._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry.data, done);
+				this._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry, done);
 			}
 			continuationCall.allowed = true;
 			if (!firstContinuation || continuationCall.called) {
@@ -285,13 +295,15 @@
 			var continuationCall = { called : false, allowed : false };
 			while (processed === false && history.index < max)
 			{
-				let entry = history.entries[++history.index];
+				++history.index;
+				let entry = history.entries[history.index];
+				let metaData = history.metaData[history.index];
 				if (!entry) continue;
 				log('  '+(history.index)+' '+entry.label);
 				let done = false;
-				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
-					log('    level '+(aIndex)+' '+aData.label);
-					let f = this._getAvailableFunction(aData.onRedo, aData.onredo, aData.redo);
+				[entry].concat(metaData.children).forEach(function(aEntry, aIndex) {
+					log('    level '+(aIndex)+' '+aEntry.label);
+					let f = this._getAvailableFunction(aEntry.onRedo, aEntry.onredo, aEntry.redo);
 					let done = false;
 					try {
 						if (f) {
@@ -311,7 +323,7 @@
 										return continuation;
 									}
 								};
-							let oneProcessed = f.call(aData, info);
+							let oneProcessed = f.call(aEntry, info);
 							done = true;
 							if (oneProcessed !== false)
 								processed = oneProcessed;
@@ -416,20 +428,21 @@
 			window.removeEventListener('unload', this, false);
 		},
 
-		_dispatchEvent : function(aType, aOptions, aData, aDone)
+		_dispatchEvent : function(aType, aOptions, aEntry, aDone)
 		{
 			var d = aOptions.window ? aOptions.window.document : document ;
 			var event = d.createEvent('Events');
 			event.initEvent(aType, true, false);
-			event.name = aOptions.name;
-			event.data = aData;
-			event.done = aDone;
+			event.name  = aOptions.name;
+			event.entry = aEntry;
+			event.data  = aEntry; // old name
+			event.done  = aDone;
 			d.dispatchEvent(event);
 		},
 
 		_getOptionsFromArguments : function(aArguments)
 		{
-			var w = null, name, data = null, task = null;
+			var w = null, name, entry = null, task = null;
 			Array.slice(aArguments).some(function(aArg) {
 				if (aArg instanceof Ci.nsIDOMWindow)
 					w = aArg;
@@ -438,9 +451,9 @@
 				else if (typeof aArg == 'function')
 					task = aArg;
 				else if (aArg)
-					data = aArg;
+					entry = aArg;
 
-				return (w && name && data && task);
+				return (w && name && entry && task);
 			});
 
 			if (!name)
@@ -453,7 +466,7 @@
 				name     : name,
 				window   : w,
 				windowId : windowId,
-				data     : data,
+				entry    : entry,
 				history  : table,
 				task     : task
 			};
@@ -469,11 +482,15 @@
 
 			if (!(aName in this._tables)) {
 				this._tables[aName] = {
-					entries  : [],
-					index    : -1,
 					window   : aWindow,
-					windowId : windowId
+					windowId : windowId,
+					clear    : function() {
+						this.entries = [];
+						this.metaData = [];
+						this.index = -1;
+					}
 				};
+				this._tables[aName].clear();
 			}
 
 			return this._tables[aName];
@@ -483,7 +500,7 @@
 		{
 			var continuation;
 			var history = aOptions.history;
-			var tables = this._tables;
+			var self = this;
 			switch (aType)
 			{
 				case 'undoable':
@@ -493,13 +510,13 @@
 						aCall.called = true;
 						log('  => doUndoableTask finish (delayed)');
 					};
-					tables = null;
+					self = null;
 					break;
 
 				case 'undo':
 					continuation = function() {
 						if (aCall.allowed)
-							delete tables._doingUndo;
+							self._doingUndo = false;
 						aCall.called = true;
 						log('  => undo finish (delayed)');
 					};
@@ -509,7 +526,7 @@
 				case 'redo':
 					continuation = function() {
 						if (aCall.allowed)
-							delete tables._doingUndo;
+							self._doingUndo = false;
 						aCall.called = true;
 						log('  => redo finish (delayed)');
 					};
@@ -520,7 +537,7 @@
 					continuation = function() {
 					};
 					history = null;
-					tables = null;
+					self = null;
 					aCall = null;
 					break;
 
