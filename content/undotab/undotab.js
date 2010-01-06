@@ -328,7 +328,7 @@ var UndoTabService = {
 		));
 
 		eval('aTabBrowser.loadOneTab = '+aTabBrowser.loadOneTab.toSource().replace(
-			/(var tab = this.addTab\([^\;]+\);)/,
+			/(var tab = this.addTab\([^\;]+?\);)/,
 			<![CDATA[
 				var tab = UndoTabService.onLoadOneTab(
 					function() {
@@ -358,7 +358,7 @@ var UndoTabService = {
 		}
 		else {
 			eval('aTabBrowser.removeTab = '+aTabBrowser.removeTab.toSource().replace(
-				/(([^;\s\.]+).dispatchEvent\(([^\)]+)\);)/,
+				/(([a-zA-Z0-9_]+).dispatchEvent\(([^\)]+)\);)/,
 				<![CDATA[
 					UndoTabService.onTabClose(
 						function() {
@@ -421,7 +421,19 @@ var UndoTabService = {
 
 		if ('_onDrop' in aTabBrowser) {
 			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
-				/(newTab = this.addTab\("about:blank"\);.*this.swapBrowsersAndCloseOther\(newTab, draggedTab\);)/,
+				/(var newTab)( = this.duplicateTab\(draggedTab\);.*?this.moveTabTo\(newTab, newIndex\);)/,
+				<![CDATA[
+					$1 = UndoTabService.onDuplicateTab(
+						function() {
+							$1$2
+							return newTab;
+						},
+						this,
+						[draggedTab]
+					);
+				]]>
+			).replace(
+				/(newTab = this.addTab\("about:blank"\);.*?this.swapBrowsersAndCloseOther\(newTab, draggedTab\);)/,
 				<![CDATA[
 					UndoTabService.importTabOnDrop(
 						function() {
@@ -433,7 +445,7 @@ var UndoTabService = {
 					);
 				]]>
 			).replace(
-				/(newTab = this.loadOneTab\([^;]*\);.*this.moveTabTo\([^;]*\);)/,
+				/(newTab = this.loadOneTab\([^;]*\);.*?this.moveTabTo\([^;]*\);)/,
 				<![CDATA[
 					UndoTabService.openNewTabOnDrop(
 						function() {
