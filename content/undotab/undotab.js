@@ -191,6 +191,11 @@ var UndoTabService = {
 		return window['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', window);
 	},
  
+	getHistory : function UT_getHistory()
+	{
+		return window['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', window);
+	},
+ 
 	updateKey : function UT_updateKey(aId, aCommand, aShortcut) 
 	{
 		var id = this.KEY_ID_PREFIX+aId;
@@ -315,21 +320,6 @@ var UndoTabService = {
 			]]>
 		));
 
-		if ('_onDrop' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
-			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
-				/(newTab = this.loadOneTab\([^;]*\);.*this.moveTabTo\([^;]*\);)/,
-				<![CDATA[
-					UndoTabService.openNewTabOnDrop(
-						function() {
-							$1
-							return newTab;
-						},
-						this
-					);
-				]]>
-			));
-		}
-
 		if ('swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
 				'{',
@@ -345,6 +335,36 @@ var UndoTabService = {
 						arguments
 					);
 				$1]]>
+			));
+		}
+
+		if ('_onDrop' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
+			eval('aTabBrowser._onDrop = '+aTabBrowser._onDrop.toSource().replace(
+				/(newTab = this.loadOneTab\([^;]*\);.*this.moveTabTo\([^;]*\);)/,
+				<![CDATA[
+					UndoTabService.openNewTabOnDrop(
+						function() {
+							$1
+							return newTab;
+						},
+						this
+					);
+				]]>
+			));
+		}
+
+		if ('_onDragEnd' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
+			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
+				/(this.replaceTabWithWindow\(draggedTab\);)/,
+				<![CDATA[
+					UndoTabService.onNewWindowFromTab(
+						function() {
+							return $1
+						},
+						this,
+						draggedTab
+					);
+				]]>
 			));
 		}
 
@@ -518,29 +538,6 @@ var UndoTabService = {
 		aTab = null;
 	},
  
-	openNewTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser) 
-	{
-		var newTabIndex = -1;
-		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
-			function(aInfo) {
-				if (aInfo && aInfo.level) return;
-				newTabIndex = aTask.call(aTabBrowser)._tPos;
-			},
-
-			'TabbarOperations',
-			window,
-			{
-				label  : this.bundle.getString('undo_addTabOnDrop_label'),
-				onUndo : function(aInfo) {
-					if (aInfo.level) return;
-					var tab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
-					UndoTabService.makeTabUnrecoverable(tab);
-					aTabBrowser.removeTab(tab);
-				}
-			}
-		);
-	},
- 
 	swapBrowsersAndCloseOther : function UT_swapBrowsersAndCloseOther(aTask, aTabBrowser, aArgs) 
 	{
 		var targetTab = aArgs[0];
@@ -656,6 +653,103 @@ var UndoTabService = {
 
 		targetTab = null;
 		remoteTab = null;
+	},
+ 
+	openNewTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser) 
+	{
+		var newTabIndex = -1;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function(aInfo) {
+				if (aInfo && aInfo.level) return;
+				newTabIndex = aTask.call(aTabBrowser)._tPos;
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : this.bundle.getString('undo_addTabOnDrop_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+					var tab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
+					UndoTabService.makeTabUnrecoverable(tab);
+					aTabBrowser.removeTab(tab);
+				}
+			}
+		);
+	},
+ 
+	onNewWindowFromTab : function UT_openNewTabOnDrop(aTask, aTabBrowser, aTab) 
+	{
+		var sourceId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
+		var remoteId;
+		var index = aTab._tPos;
+		var selected = aTab.selected;
+		var entry;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function(aInfo) {
+				var continuation = aInfo.getContinuation();
+				var newWindow = aTask.call(aTabBrowser);
+				newWindow.addEventListener('load', function() {
+					newWindow.removeEventListener('load', arguments.callee, false);
+					remoteId = aInfo.manager.getWindowId(newWindow);
+					newWindow.setTimeout(function() { // wait for tab swap
+						aInfo.manager.addEntry(
+							'TabbarOperations',
+							newWindow,
+							entry
+						);
+						continuation();
+					}, 0);
+				}, false);
+			},
+
+			'TabbarOperations',
+			window,
+			(entry = {
+				label  : this.bundle.getString('undo_newWindowFromTab_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+
+					var remoteWindow = aInfo.manager.getWindowById(remoteId);
+					var targetWindow = aInfo.manager.getWindowById(sourceId);
+					if (!targetWindow || !remoteWindow) return false;
+
+					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
+					var remoteTab = remoteWindow.gBrowser.selectedTab;
+					var targetTab = targetWindow.UndoTabService.importTab(remoteTab, targetBrowser);
+					targetBrowser.moveTabTo(targetTab, index);
+					if (selected)
+						targetBrowser.selectedTab = targetTab;
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level) return;
+
+					var sourceWindow = aInfo.manager.getWindowById(sourceId);
+					if (!sourceWindow) return false;
+
+					var sourceBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : sourceWindow.gBrowser;
+					var tab = sourceWindow.UndoTabService.getTabAt(index, sourceBrowser);
+					if (!tab) return false;
+
+					var continuation = aInfo.getContinuation();
+					sourceWindow.setTimeout(function() {
+						var remoteWindow = sourceBrowser.replaceTabWithWindow(tab);
+						remoteWindow.addEventListener('load', function() {
+							remoteWindow.removeEventListener('load', arguments.callee, false);
+							remoteId = aInfo.manager.getWindowId(remoteWindow);
+							remoteWindow.setTimeout(function() { // wait for tab swap
+								aInfo.manager.addEntry(
+									'TabbarOperations',
+									remoteWindow,
+									entry
+								);
+								continuation();
+							}, 0);
+						}, false);
+					}, 0);
+				}
+			})
+		);
 	},
   
 /* Prefs */ 

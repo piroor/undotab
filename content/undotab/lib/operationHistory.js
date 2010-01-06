@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 12;
+	const currentRevision = 13;
 	const DEBUG = true;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
@@ -150,6 +150,8 @@
 				}
 			}
 
+			var firstContinuation;
+			var continuationCall = { called : false, allowed : false };
 			try {
 				if (options.task)
 					options.task.call(
@@ -158,7 +160,17 @@
 							level   : 0,
 							parent  : null,
 							done    : false,
-							manager : this
+							manager : this,
+							getContinuation : function() {
+								let continuation = this.manager._getContinuation(
+										!firstContinuation && wasInUndoableTask ? 'null' : 'undoable',
+										options,
+										continuationCall
+									);
+								if (!firstContinuation)
+									firstContinuation = continuation;
+								return continuation;
+							}
 						}
 					);
 			}
@@ -167,8 +179,13 @@
 				error = e;
 			}
 
-			if (!wasInUndoableTask)
-				delete history._inUndoableTask;
+			continuationCall.allowed = true;
+			if (!firstContinuation || continuationCall.called) {
+				if (!wasInUndoableTask)
+					delete history._inUndoableTask;
+
+				log('  => doUndoableTask finish');
+			}
 
 			if (error)
 				throw error;
@@ -186,15 +203,17 @@
 
 		undo : function()
 		{
-			log('undo start');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
+			log('undo start ('+history.index+' / '+history.entries.length+', '+this._doingUndo+')');
 			if (history.index < 0 || this._doingUndo)
 				return false;
 
 			this._doingUndo = true;
 			var processed = false;
 			var error;
+			var firstContinuation;
+			var continuationCall = { called : false, allowed : false };
 			while (processed === false && history.index > -1)
 			{
 				let entry = history.entries[history.index--];
@@ -210,7 +229,17 @@
 									level   : aIndex,
 									parent  : (aIndex ? entry.data : null ),
 									done    : processed && done,
-									manager : this
+									manager : this,
+									getContinuation : function() {
+										continuation = this.manager._getContinuation(
+												firstContinuation ? 'null' : 'undo',
+												options,
+												continuationCall
+											);
+										if (!firstContinuation)
+											firstContinuation = continuation;
+										return continuation;
+									}
 								};
 							let oneProcessed = f.call(aData, info);
 							done = true;
@@ -228,8 +257,11 @@
 				}, this);
 				this._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry.data, done);
 			}
-			this._doingUndo = false;
-			log('undo finish');
+			continuationCall.allowed = true;
+			if (!firstContinuation || continuationCall.called) {
+				this._doingUndo = false;
+				log('  => undo finish');
+			}
 
 			if (error)
 				throw error;
@@ -239,16 +271,18 @@
 
 		redo : function()
 		{
-			log('undo start');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			var max = history.entries.length;
+			log('redo start ('+history.index+' / '+max+', '+this._doingUndo+')');
 			if (history.index >= max || this._doingUndo)
 				return false;
 
 			this._doingUndo = true;
 			var processed = false;
 			var error;
+			var firstContinuation;
+			var continuationCall = { called : false, allowed : false };
 			while (processed === false && history.index < max)
 			{
 				let entry = history.entries[++history.index];
@@ -265,7 +299,17 @@
 									level   : aIndex,
 									parent  : (aIndex ? entry.data : null ),
 									done    : processed && done,
-									manager : this
+									manager : this,
+									getContinuation : function() {
+										continuation = this.manager._getContinuation(
+												firstContinuation ? 'null' : 'redo',
+												options,
+												continuationCall
+											);
+										if (!firstContinuation)
+											firstContinuation = continuation;
+										return continuation;
+									}
 								};
 							let oneProcessed = f.call(aData, info);
 							done = true;
@@ -283,8 +327,11 @@
 				}, this);
 				this._dispatchEvent('UIOperationGlobalHistoryRedo', options, entry.data, done);
 			}
-			this._doingUndo = false;
-			log('redo finish');
+			continuationCall.allowed = true;
+			if (!firstContinuation || continuationCall.called) {
+				this._doingUndo = false;
+				log('  => redo finish');
+			}
 
 			if (error)
 				throw error;
@@ -430,6 +477,58 @@
 			}
 
 			return this._tables[aName];
+		},
+
+		_getContinuation : function(aType, aOptions, aCall)
+		{
+			var continuation;
+			var history = aOptions.history;
+			var tables = this._tables;
+			switch (aType)
+			{
+				case 'undoable':
+					continuation = function() {
+						if (aCall.allowed)
+							delete history._inUndoableTask;
+						aCall.called = true;
+						log('  => doUndoableTask finish (delayed)');
+					};
+					tables = null;
+					break;
+
+				case 'undo':
+					continuation = function() {
+						if (aCall.allowed)
+							delete tables._doingUndo;
+						aCall.called = true;
+						log('  => undo finish (delayed)');
+					};
+					history = null;
+					break;
+
+				case 'redo':
+					continuation = function() {
+						if (aCall.allowed)
+							delete tables._doingUndo;
+						aCall.called = true;
+						log('  => redo finish (delayed)');
+					};
+					history = null;
+					break;
+
+				case 'null':
+					continuation = function() {
+					};
+					history = null;
+					tables = null;
+					aCall = null;
+					break;
+
+				default:
+					throw 'unknown continuation type: '+aType;
+			}
+			aOptions = null;
+			return continuation;
 		},
 
 		_getAvailableFunction : function()
