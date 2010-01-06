@@ -1,6 +1,9 @@
 var UndoTabService = { 
-	PREFROOT : 'extensions.undotab@piro.sakura.ne.jp',
 	
+	PREFROOT : 'extensions.undotab@piro.sakura.ne.jp', 
+
+	KEY_ID_PREFIX : 'undotab-shortcut-',
+ 
 	get SessionStore() { 
 		if (!this._SessionStore) {
 			this._SessionStore = Components.classes['@mozilla.org/browser/sessionstore;1'].getService(Components.interfaces.nsISessionStore);
@@ -17,6 +20,8 @@ var UndoTabService = {
 	},
 	_bundle : null,
  
+/* Utilities */ 
+	
 	evalInSandbox : function UT_evalInSandbox(aCode, aOwner) 
 	{
 		try {
@@ -28,24 +33,7 @@ var UndoTabService = {
 		return void(0);
 	},
  
-	NSResolver : { 
-		lookupNamespaceURI : function UT_lookupNamespaceURI(aPrefix)
-		{
-			switch (aPrefix)
-			{
-				case 'xul':
-					return 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
-				case 'html':
-				case 'xhtml':
-					return 'http://www.w3.org/1999/xhtml';
-				case 'xlink':
-					return 'http://www.w3.org/1999/xlink';
-				default:
-					return '';
-			}
-		}
-	},
-	evaluateXPath : function UT_evaluateXPath(aExpression, aContext, aType)
+	evaluateXPath : function UT_evaluateXPath(aExpression, aContext, aType) 
 	{
 		if (!aType) aType = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
 		try {
@@ -69,7 +57,25 @@ var UndoTabService = {
 		}
 		return xpathResult;
 	},
- 
+	
+	NSResolver : { 
+		lookupNamespaceURI : function UT_lookupNamespaceURI(aPrefix)
+		{
+			switch (aPrefix)
+			{
+				case 'xul':
+					return 'http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul';
+				case 'html':
+				case 'xhtml':
+					return 'http://www.w3.org/1999/xhtml';
+				case 'xlink':
+					return 'http://www.w3.org/1999/xlink';
+				default:
+					return '';
+			}
+		}
+	},
+  
 	getArrayFromXPathResult : function UT_getArrayFromXPathResult(aXPathResult) 
 	{
 		if (!(aXPathResult instanceof Components.interfaces.nsIDOMXPathResult)) {
@@ -147,16 +153,76 @@ var UndoTabService = {
 			b.contentWindow.location.replace('about:blank');
 	},
  
-	undo : function()
+	parseShortcut : function UT_parseShortcut(aShortcut) 
+	{
+		var accelKey = navigator.platform.toLowerCase().indexOf('mac') == 0 ? 'meta' : 'ctrl' ;
+		aShortcut = aShortcut.replace(/accel/gi, accelKey);
+
+		var keys = (aShortcut || '').split('+');
+
+		var keyCode = keys[keys.length-1].replace(/ /g, '_').toUpperCase();
+		var key     = keyCode;
+
+		var keyCodeName = (keyCode.length == 1 || keyCode == 'SPACE' || !keyCode) ? '' : 'VK_'+keyCode ;
+		key = keyCodeName ? '' : keyCode ;
+
+		return {
+			key      : key,
+			charCode : (key ? key.charCodeAt(0) : 0 ),
+			keyCode  : keyCodeName,
+			altKey   : /alt/i.test(aShortcut),
+			ctrlKey  : /ctrl|control/i.test(aShortcut),
+			metaKey  : /meta/i.test(aShortcut),
+			shiftKey : /shift/i.test(aShortcut),
+			string   : (aShortcut || ''),
+			modified : false
+		};
+	},
+  
+/* Commands */ 
+	
+	undo : function UT_undo() 
 	{
 		return window['piro.sakura.ne.jp'].operationHistory.undo('TabbarOperations', window);
 	},
  
-	redo : function()
+	redo : function UT_redo() 
 	{
 		return window['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', window);
 	},
  
+	updateKey : function UT_updateKey(aId, aCommand, aShortcut) 
+	{
+		var id = this.KEY_ID_PREFIX+aId;
+		var key = document.getElementById(id);
+		if (key)
+			key.parentNode.removeChild(key);
+
+		if (!aShortcut.key && !aShortcut.keyCode) return;
+
+		key = document.createElement('key');
+		key.setAttribute('id', id);
+		key.setAttribute('oncommand', aCommand);
+
+		var modifiers = [];
+		if (aShortcut.altKey) modifiers.push('alt');
+		if (aShortcut.ctrlKey) modifiers.push('control');
+		if (aShortcut.metaKey) modifiers.push('meta');
+		if (aShortcut.shiftKey) modifiers.push('shift');
+		modifiers = modifiers.join(',');
+		if (modifiers)
+			key.setAttribute('modifiers', modifiers);
+
+		if (aShortcut.key)
+			key.setAttribute('key', aShortcut.key);
+
+		if (aShortcut.keyCode)
+			key.setAttribute('keycode', aShortcut.keyCode);
+
+		var keyset = document.getElementById('mainKeyset');
+		keyset.appendChild(key);
+	},
+  
 /* Initializing */ 
 	
 	init : function UT_init() 
@@ -167,6 +233,10 @@ var UndoTabService = {
 		window.addEventListener('unload', this, false);
 
 		this.addPrefListener(this);
+		window.setTimeout(function(aSelf) {
+			aSelf.observe(null, 'nsPref:changed', aSelf.PREFROOT+'.undo.shortcut');
+			aSelf.observe(null, 'nsPref:changed', aSelf.PREFROOT+'.redo.shortcut');
+		}, 0, this);
 
 		this.initTabBrowser(document.getElementById('content'));
 	},
@@ -325,7 +395,7 @@ var UndoTabService = {
 		}
 	},
  
-	onTabOpen : function(aTask, aTabBrowser, aTab, aArguments) 
+	onTabOpen : function UT_onTabOpen(aTask, aTabBrowser, aTab, aArguments) 
 	{
 		var newTabIndex = aTab._tPos;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
@@ -355,7 +425,7 @@ var UndoTabService = {
 		);
 	},
  
-	onLoadOneTab : function(aTask, aTabBrowser, aTab, aArguments) 
+	onLoadOneTab : function UT_onLoadOneTab(aTask, aTabBrowser, aTab, aArguments) 
 	{
 		var newTabIndex;
 		var newTab;
@@ -387,7 +457,7 @@ var UndoTabService = {
 		return newTab;
 	},
  
-	onTabClose : function(aTask, aTabBrowser, aTab) 
+	onTabClose : function UT_onTabClose(aTask, aTabBrowser, aTab) 
 	{
 		var position = aTab._tPos;
 		var state = this.SessionStore.getTabState(aTab);
@@ -418,7 +488,7 @@ var UndoTabService = {
 		);
 	},
  
-	onTabMove : function(aTask, aTabBrowser, aTab, aOldPosition) 
+	onTabMove : function UT_onTabMove(aTask, aTabBrowser, aTab, aOldPosition) 
 	{
 		var newIndex = aTab._tPos;
 		var oldIndex = aOldPosition;
@@ -450,7 +520,7 @@ var UndoTabService = {
 		aTab = null;
 	},
  
-	openNewTabOnDrop : function(aTask, aTabBrowser) 
+	openNewTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser) 
 	{
 		var newTabIndex = -1;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
@@ -473,7 +543,7 @@ var UndoTabService = {
 		);
 	},
  
-	swapBrowsersAndCloseOther : function(aTask, aTabBrowser, aArgs) 
+	swapBrowsersAndCloseOther : function UT_swapBrowsersAndCloseOther(aTask, aTabBrowser, aArgs) 
 	{
 		var targetTab = aArgs[0];
 		var targetTabIndex = targetTab._tPos;
@@ -590,18 +660,38 @@ var UndoTabService = {
 		remoteTab = null;
 	},
   
-/* Pref Listener */ 
+/* Prefs */ 
 	
-	domain : 'extensions.undotab', 
+	domain : 'extensions.undotab@piro.sakura.ne.jp', 
+ 
+	getSelfPref : function UT_getSelfPref(aPrefName) 
+	{
+		return this.getPref(this.PREFROOT+'.'+aPrefName);
+	},
+ 
+	setSelfPref : function UT_setSelfPref(aPrefName, aValue) 
+	{
+		return this.setPref(this.PREFROOT+'.'+aPrefName, aValue);
+	},
+ 
+	clearSelfPref : function UT_clearSelfPref(aPrefName) 
+	{
+		return this.clearPref(this.PREFROOT+'.'+aPrefName);
+	},
  
 	observe : function UT_observe(aSubject, aTopic, aPrefName) 
 	{
 		if (aTopic != 'nsPref:changed') return;
 
 		var value = this.getPref(aPrefName);
-		switch (aPrefName)
+		switch (aPrefName.replace(this.PREFROOT+'.', ''))
 		{
-			case 'extensions.undotab.':
+			case 'undo.shortcut':
+				this.updateKey('undo', 'UndoTabService.undo();', this.parseShortcut(value));
+				break;
+
+			case 'redo.shortcut':
+				this.updateKey('redo', 'UndoTabService.redo();', this.parseShortcut(value));
 				break;
 
 			default:
