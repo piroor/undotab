@@ -1139,7 +1139,7 @@ var UndoTabService = {
 						targetBrowser.selectedTab = targetTab;
 
 					if (isLast) {
-						var continuation = aInfo.getContinuation();
+						let continuation = aInfo.getContinuation();
 						remoteWindow.setTimeout(function() {
 							remoteWindow.close();
 							continuation();
