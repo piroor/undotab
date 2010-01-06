@@ -243,9 +243,29 @@ var UndoTabService = {
 			aSelf.observe(null, 'nsPref:changed', aSelf.PREFROOT+'.redo.shortcut');
 		}, 0, this);
 
+		this.overrideGlobalFunctions();
 		this.initTabBrowser(document.getElementById('content'));
 	},
 	
+	overrideGlobalFunctions : function UT_overrideGlobalFunctions() 
+	{
+		eval('window.undoCloseTab = '+window.undoCloseTab.toSource().replace(
+			/(\(([^\)]*)\)\s*\{)/,
+			<![CDATA[$1
+				return UndoTabService.onUndoCloseTab(
+					function($2) {
+			]]>
+		).replace(
+			/(\}\)?)$/,
+			<![CDATA[
+					},
+					this,
+					arguments
+				);
+			$1]]>
+		));
+	},
+ 
 	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
 	{
 		eval('aTabBrowser.addTab = '+aTabBrowser.addTab.toSource().replace(
@@ -599,7 +619,7 @@ var UndoTabService = {
 							if (!remoteWindow || !targetWindow) return false;
 
 							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
-							if (history.entries[history.index] == sourceEntry) {
+							if (history.currentEntry == sourceEntry) {
 								targetWindow.setTimeout(function() {
 									aInfo.manager.undo('TabbarOperations', targetWindow);
 								}, 0);
@@ -616,7 +636,7 @@ var UndoTabService = {
 							if (!remoteWindow || !targetWindow) return false;
 
 							var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
-							if (history.entries[history.index] == sourceEntry) {
+							if (history.currentEntry == sourceEntry) {
 								targetWindow.setTimeout(function() {
 									aInfo.manager.redo('TabbarOperations', targetWindow);
 								}, 0);
@@ -742,7 +762,7 @@ var UndoTabService = {
 					}
 					else {
 						let history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
-						if (this != entry && history.entries[history.index] == entry) {
+						if (this != entry && history.currentEntry == entry) {
 							targetWindow.setTimeout(function() {
 								aInfo.manager.undo('TabbarOperations', targetWindow);
 							}, 0);
@@ -763,7 +783,7 @@ var UndoTabService = {
 					if (!targetWindow || !remoteWindow) return false;
 
 					var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
-					if (this != entry && history.entries[history.index] == entry) {
+					if (this != entry && history.currentEntry == entry) {
 						targetWindow.setTimeout(function() {
 							aInfo.manager.redo('TabbarOperations', targetWindow);
 						}, 0);
@@ -854,7 +874,7 @@ var UndoTabService = {
 					if (!targetWindow || !remoteWindow) return false;
 
 					var history = aInfo.manager.getHistory('TabbarOperations', targetWindow);
-					if (this != entry && history.entries[history.index] == entry) {
+					if (this != entry && history.currentEntry == entry) {
 						targetWindow.setTimeout(function() {
 							aInfo.manager.undo('TabbarOperations', targetWindow);
 						}, 0);
@@ -900,6 +920,61 @@ var UndoTabService = {
 				}
 			})
 		);
+	},
+ 
+	onUndoCloseTab : function UT_onUndoCloseTab(aTask, aThis, aArguments) 
+	{
+		var position = -1;
+		var selected;
+		var state;
+		var tab;
+		var tabbrowser;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function(aInfo) {
+				tab = aTask.apply(aThis, aArguments);
+				if (tab) {
+					position = tab._tPos;
+					selected = tab.selected;
+					tabbrowser = UndoTabService.getTabBrowserFromChild(tab);
+				}
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : this.bundle.getString('undo_undoCloseTab_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+
+					if (!tabbrowser || !tabbrowser.parentNode) {
+						tabbrowser = null;
+						return false;
+					}
+
+					var tab = UndoTabService.getTabAt(position, tabbrowser);
+					if (!tab) return false;
+
+					state = UndoTabService.SessionStore.getTabState(tab);
+					tabbrowser.removeTab(tab);
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level) return;
+
+					if (!tabbrowser || !tabbrowser.parentNode) {
+						tabbrowser = null;
+						return false;
+					}
+
+					var tab = tabbrowser.addTab();
+					UndoTabService.SessionStore.setTabState(tab, state);
+					tabbrowser.moveTabTo(tab, position);
+					position = tab._tPos;
+					if (selected)
+						tabbrowser.selectedTab = tab;
+				}
+			}
+		);
+		return tab;
 	},
   
 /* Prefs */ 
