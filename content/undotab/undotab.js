@@ -342,7 +342,23 @@ var UndoTabService = {
 			]]>
 		));
 
-		if ('_beginRemoveTab' in aTabBrowser) {
+		eval('aTabBrowser.loadTabs = '+aTabBrowser.loadTabs.toSource().replace(
+			'if (aReplace) {',
+			<![CDATA[
+				UndoTabService.onLoadTabs(
+					function() {
+			$&]]>
+		).replace(
+			'if (!aLoadInBackground) {',
+			<![CDATA[
+					},
+					this,
+					arguments
+				);
+			$&]]>
+		));
+
+		if ('_beginRemoveTab' in aTabBrowser) { // Firefox 3.5 or later
 			eval('aTabBrowser._beginRemoveTab = '+aTabBrowser._beginRemoveTab.toSource().replace(
 				/(([a-zA-Z0-9_]+).dispatchEvent\([^\)]+\);)/,
 				<![CDATA[
@@ -356,7 +372,7 @@ var UndoTabService = {
 				]]>
 			));
 		}
-		else {
+		else { // Firefox 3.0
 			eval('aTabBrowser.removeTab = '+aTabBrowser.removeTab.toSource().replace(
 				/(([a-zA-Z0-9_]+).dispatchEvent\(([^\)]+)\);)/,
 				<![CDATA[
@@ -404,7 +420,7 @@ var UndoTabService = {
 		eval('aTabBrowser.removeAllTabsBut = '+aTabBrowser.removeAllTabsBut.toSource().replace(
 			'{',
 			<![CDATA[{
-				UndoTabService.onRemoveAllTabsBut(
+				return UndoTabService.onRemoveAllTabsBut(
 					function() {
 			]]>
 		).replace(
@@ -439,7 +455,7 @@ var UndoTabService = {
 			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
 				'{',
 				<![CDATA[{
-					UndoTabService.onSwapBrowsersAndCloseOther(
+					return UndoTabService.onSwapBrowsersAndCloseOther(
 						function() {
 				]]>
 			).replace(
@@ -492,7 +508,7 @@ var UndoTabService = {
 			));
 		}
 
-		if ('_onDragEnd' in aTabBrowser && 'swapBrowsersAndCloseOther' in aTabBrowser) {
+		if ('_onDragEnd' in aTabBrowser) {
 			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
 				/(this.replaceTabWithWindow\(draggedTab\);)/,
 				<![CDATA[
@@ -639,6 +655,87 @@ var UndoTabService = {
 		return newTab;
 	},
  
+	onLoadTabs : function UT_onLoadTabs(aTask, aTabBrowser, aArguments) 
+	{
+		var loadInBackgtound = aArguments[1];
+		var replace = aArguments[2];
+		var currentPosition = aTabBrowser.selectedTab._tPos;
+		var currentState = replace ? this.SessionStore.getTabState(aTabBrowser.selectedTab) : null ;
+		// var states = [];
+		var uris = aArguments[0];
+		var positions = [];
+
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var beforeTabs = UndoTabService.getTabsArray(aTabBrowser);
+				aTask.call(aTabBrowser);
+				var tabs = UndoTabService.getTabsArray(aTabBrowser)
+							.filter(function(aTab) {
+								return beforeTabs.indexOf(aTab) < 0;
+							});
+				if (replace)
+					tabs.unshift(aTabBrowser.selectedTab);
+
+				positions = tabs.map(function(aTab) {
+						return aTab._tPos;
+					});
+				// states = tabs.map(function(aTab) {
+				// 		positions.push(aTab._tPos);
+				// 		return UndoTabService.SessionStore.getTabState(aTab);
+				// 	});
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : this.bundle.getString('undo_loadTabs_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+
+					var tabs = UndoTabService.getTabsArray(aTabBrowser)
+								.filter(function(aTab, aIndex) {
+									return positions.indexOf(aIndex) > -1;
+								});
+					if (replace) {
+						var currentTab = tabs.shift();
+						UndoTabService.SessionStore.setTabState(currentTab, currentState);
+					}
+					tabs.forEach(function(aTab) {
+						UndoTabService.makeTabUnrecoverable(aTab);
+						aTabBrowser.removeTab(aTab);
+					});
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level) return;
+					positions.forEach(function(aPosition, aIndex) {
+						var tab;
+						if (aIndex == 0 && replace) {
+							tab = UndoTabService.getTabAt(currentPosition, aTabBrowser);
+							tab.linkedBrowser.loadURI(uris[aIndex], null, null);
+						}
+						else {
+							tab = aTabBrowser.addTab(uris[aIndex]);
+						}
+						aTabBrowser.moveTabTo(tab, aPosition);
+						positions[aIndex] = tab._tPos;
+						if (!loadInBackgtound && aIndex == 0)
+							aTabBrowser.selectedTab = tab;
+					});
+					// states.forEach(function(aState, aIndex) {
+					// 	var tab = (aIndex == 0 && replace) ?
+					// 				UndoTabService.getTabAt(currentPosition, aTabBrowser) :
+					// 				aTabBrowser.addTab();
+					// 	UndoTabService.SessionStore.setTabState(tab, aState);
+					// 	aTabBrowser.moveTabTo(tab, positions[aIndex]);
+					// 	positions[aIndex] = tab._tPos;
+					// 	if (!loadInBackgtound && aIndex == 0)
+					// 		aTabBrowser.selectedTab = tab;
+					// });
+				}
+			}
+		);
+	},
+ 
 	onTabClose : function UT_onTabClose(aTask, aTabBrowser, aTab) 
 	{
 		var position = aTab._tPos;
@@ -664,9 +761,9 @@ var UndoTabService = {
 						aTabBrowser.selectedTab = newTab;
 				},
 				onRedo : function(aInfo) {
+					if (aInfo.level) return;
 					var tab = UndoTabService.getTabAt(position, aTabBrowser);
 					if (!tab) return false;
-					if (aInfo.level) return;
 					selected = tab.selected;
 					UndoTabService.makeTabUnrecoverable(tab);
 					aTabBrowser.removeTab(tab);
@@ -775,10 +872,11 @@ var UndoTabService = {
 
 		tab = null;
 		var canceled = false;
+		var retVal;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function() {
 				var count = UndoTabService.getTabs(aTabBrowser).snapshotLength;
-				aTask.call(aTabBrowser);
+				retVal = aTask.call(aTabBrowser);
 				canceled = UndoTabService.getTabs(aTabBrowser).snapshotLength == count;
 			},
 
@@ -816,6 +914,8 @@ var UndoTabService = {
 				}
 			}
 		);
+
+		return retVal;
 	},
  
 	onSwapBrowsersAndCloseOther : function UT_onSwapBrowsersAndCloseOther(aTask, aTabBrowser, aArguments) 
@@ -834,9 +934,10 @@ var UndoTabService = {
 
 		var sourceEntry;
 		var targetEntry;
+		var retVal;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
-				aTask.call(aTabBrowser);
+				retVal = aTask.call(aTabBrowser);
 				var remoteWindow = aInfo.manager.getWindowById(remoteId);
 				aInfo.manager.addEntry(
 					'TabbarOperations',
@@ -933,6 +1034,8 @@ var UndoTabService = {
 
 		targetTab = null;
 		remoteTab = null;
+
+		return retVal;
 	},
  
 	importTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser, aDraggedTab) 
