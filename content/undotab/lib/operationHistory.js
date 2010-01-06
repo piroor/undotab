@@ -75,7 +75,7 @@
 */
 (function() {
 	const currentRevision = 20;
-	const DEBUG = true;
+	const DEBUG = false;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
