@@ -8,10 +8,10 @@
                    em:version="0.1.2010010701"
                    em:creator="SHIMODA Hiroshi"
                    em:description="Provides ability to undo any operations about tabs."
-                   em:homepageURL="http://piro.sakura.ne.jp/xul/undotab/">
+                   em:homepageURL="http://piro.sakura.ne.jp/xul/undotab/"
+                   em:optionsURL="chrome://undotab/content/config.xul">
 <!--
                    em:iconURL="chrome://undotab/content/icon32.png"
-                   em:optionsURL="chrome://undotab/content/config.xul"
 -->
 
 

@@ -1,4 +1,23 @@
-<!ENTITY config.title        "Undo Tab Operationsの設定">
+<!ENTITY config.title "Undo Tab Operationsの設定">
+
+
+<!ENTITY config.tab.general "全般">
+
+<!ENTITY config.max.window.before "">
+<!ENTITY config.max.window.after  "回までやり直し可能にする">
+
+<!ENTITY config.shortcut.caption "キーボードショートカット">
+
+<!ENTITY config.shortcut.undo "タブの操作を元に戻す">
+<!ENTITY config.shortcut.redo "タブの操作をやり直す">
+
+<!ENTITY config.shortcut.set            "変更">
+<!ENTITY config.shortcut.clear          "消去">
+<!ENTITY config.shortcut.reset          "リセット">
+<!ENTITY config.shortcut.dialog.message "ショートカットに使いたいキーを押してください">
+<!ENTITY config.shortcut.dialog.button  "キャンセル">
+
+
 
 
 <!ENTITY menu.label "タブの操作の履歴">

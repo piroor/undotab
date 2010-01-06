@@ -1,4 +1,22 @@
-<!ENTITY config.title        "Undo Tab Operations Comfigurations">
+<!ENTITY config.title "Undo Tab Operations Comfigurations">
+
+
+<!ENTITY config.tab.general "General">
+
+<!ENTITY config.max.window.before "Make tab operations undoable until">
+<!ENTITY config.max.window.after  "times">
+
+<!ENTITY config.shortcut.caption "Keyboard shortcuts">
+
+<!ENTITY config.shortcut.undo "Undo tab operation">
+<!ENTITY config.shortcut.redo "Redo tab operation">
+
+<!ENTITY config.shortcut.set            "Change">
+<!ENTITY config.shortcut.clear          "Clear">
+<!ENTITY config.shortcut.reset          "Reset">
+<!ENTITY config.shortcut.dialog.message "Press new shortcut">
+<!ENTITY config.shortcut.dialog.button  "Cancel">
+
 
 
 <!ENTITY menu.label "Tab Operations History">
