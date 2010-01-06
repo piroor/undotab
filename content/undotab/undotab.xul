@@ -1,4 +1,5 @@
 <?xml version="1.0"?>
+<!DOCTYPE overlay SYSTEM "chrome://undotab/locale/undotab.dtd">
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
 <script src="lib/operationHistory.js" type="application/x-javascript; version=1.7"/>
@@ -8,5 +9,14 @@
 <stringbundleset id="stringbundleset">
 	<stringbundle id="undotab-bundle" src="chrome://undotab/locale/undotab.properties"/>
 </stringbundleset>
+
+<menupopup id="goPopup">
+	<menu id="undotab-history-menu"
+		label="&menu.label;">
+		<menupopup
+			onpopupshowing="UndoTabService.handleEvent(event);"
+			oncommand="UndoTabService.handleEvent(event);"/>
+	</menu>
+</menupopup>
 
 </overlay>

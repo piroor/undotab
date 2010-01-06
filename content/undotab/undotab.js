@@ -191,6 +191,11 @@ var UndoTabService = {
 		return window['piro.sakura.ne.jp'].operationHistory.redo('TabbarOperations', window);
 	},
  
+	goToIndex : function UT_goToIndex(aIndex) 
+	{
+		return window['piro.sakura.ne.jp'].operationHistory.goToIndex(aIndex, 'TabbarOperations', window);
+	},
+ 
 	getHistory : function UT_getHistory()
 	{
 		return window['piro.sakura.ne.jp'].operationHistory.getHistory('TabbarOperations', window);
@@ -226,6 +231,46 @@ var UndoTabService = {
 
 		var keyset = document.getElementById('mainKeyset');
 		keyset.appendChild(key);
+	},
+ 
+	updateMenuPopup : function UT_updateMenuPopup(aPopup) 
+	{
+		var range = document.createRange();
+		range.selectNodeContents(aPopup);
+		range.deleteContents();
+
+		var fragment = document.createDocumentFragment();
+		var history = this.getHistory();
+		if (history.entries.length) {
+			let current = history.index;
+			history.entries
+				.forEach(function(aEntry, aIndex) {
+					var item = document.createElement('menuitem');
+					item.setAttribute('label', aEntry.label);
+					item.setAttribute('value', aIndex);
+					item.setAttribute('type', 'radio');
+					item.setAttribute('name', 'undotab-history-entry');
+					if (aIndex == current) {
+						item.setAttribute('checked', true);
+					}
+					else if (aIndex == current-1) {
+						item.setAttribute('key', this.KEY_ID_PREFIX+'undo');
+					}
+					else if (aIndex == current+1) {
+						item.setAttribute('key', this.KEY_ID_PREFIX+'redo');
+					}
+					fragment.insertBefore(item, fragment.firstChild);
+				}, this);
+		}
+		else {
+			let item = document.createElement('menuitem');
+			item.setAttribute('label', this.bundle.getString('history_blank_label'));
+			item.setAttribute('disabled', true);
+			fragment.appendChild(item);
+		}
+
+		range.insertNode(fragment);
+		range.detach();
 	},
   
 /* Initializing */ 
@@ -340,11 +385,27 @@ var UndoTabService = {
 			]]>
 		));
 
+		eval('aTabBrowser.duplicateTab = '+aTabBrowser.duplicateTab.toSource().replace(
+			'{',
+			<![CDATA[{
+				return UndoTabService.onDuplicateTab(
+					function() {
+			]]>
+		).replace(
+			/(\}\)?)$/,
+			<![CDATA[
+					},
+					this,
+					arguments
+				);
+			$1]]>
+		));
+
 		if ('swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
 				'{',
 				<![CDATA[{
-					UndoTabService.swapBrowsersAndCloseOther(
+					UndoTabService.onSwapBrowsersAndCloseOther(
 						function() {
 				]]>
 			).replace(
@@ -444,7 +505,23 @@ var UndoTabService = {
 			case 'unload':
 				this.destroy();
 				break;
+
+			case 'command':
+				this.onMenuCommand(aEvent);
+				break;
+
+			case 'popupshowing':
+				this.updateMenuPopup(aEvent.currentTarget);
+				break;
 		}
+	},
+ 
+	onMenuCommand : function UT_onMenuCommand(aEvent) 
+	{
+		var index = aEvent.target.getAttribute('value');
+		index = parseInt(index);
+		if (!isNaN(index))
+			this.goToIndex(index);
 	},
  
 	onTabOpen : function UT_onTabOpen(aTask, aTabBrowser, aTab, aArguments) 
@@ -574,9 +651,9 @@ var UndoTabService = {
 					oldPosition = tab._tPos;
 				},
 				onRedo : function(aInfo) {
+					if (aInfo.level) return;
 					var tab = UndoTabService.getTabAt(oldPosition, aTabBrowser);
 					if (!tab) return false;
-					if (aInfo.level) return;
 					aTabBrowser.moveTabTo(tab, newPosition);
 					newPosition = tab._tPos;
 				}
@@ -586,14 +663,61 @@ var UndoTabService = {
 		aTab = null;
 	},
  
-	swapBrowsersAndCloseOther : function UT_swapBrowsersAndCloseOther(aTask, aTabBrowser, aArgs) 
+	onDuplicateTab : function UT_onDuplicateTab(aTask, aTabBrowser, aArguments) 
 	{
-		var targetTab = aArgs[0];
+		var sourceTab = aArguments[0];
+		var soruceBrowser = this.getTabBrowserFromChild(sourceTab);
+		var sourceTabIndex = sourceTab._tPos;
+		sourceTab = null;
+
+		var newTab;
+		var newTabPosition;
+
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				newTab = aTask.call(aTabBrowser);
+				newTabPosition = newTab ? newTab._tPos : -1 ;
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : this.bundle.getString('undo_duplicateTab_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+					var tab = UndoTabService.getTabAt(newTabPosition, aTabBrowser);
+					if (!tab) return false;
+					UndoTabService.makeTabUnrecoverable(tab);
+					aTabBrowser.removeTab(tab);
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level) return;
+					var sourceTab, newTab;
+					if (
+						!soruceBrowser ||
+						!soruceBrowser.parentNode ||
+						!(sourceTab = UndoTabService.getTabAt(sourceTabIndex, soruceBrowser)) ||
+						!(newTab = aTabBrowser.duplicateTab(sourceTab))
+						) {
+						soruceBrowser = null;
+						return false;
+					}
+					aTabBrowser.moveTabTo(newTab, newTabPosition);
+					newTabPosition = newTab._tPos;
+				}
+			}
+		);
+		return newTab;
+	},
+ 
+	onSwapBrowsersAndCloseOther : function UT_onSwapBrowsersAndCloseOther(aTask, aTabBrowser, aArguments) 
+	{
+		var targetTab = aArguments[0];
 		var targetTabPosition = targetTab._tPos;
 		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(targetTab.ownerDocument.defaultView);
 		var targetLabel = this.bundle.getString('undo_importTab_target_label');
 
-		var remoteTab = aArgs[1];
+		var remoteTab = aArguments[1];
 		var remoteTabPosition = remoteTab._tPos;
 		var remoteId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(remoteTab.ownerDocument.defaultView);
 		var remoteLabel = this.bundle.getString('undo_importTab_remote_label');
