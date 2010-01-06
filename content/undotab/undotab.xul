@@ -5,4 +5,8 @@
 <script src="lib/prefs.js" type="application/x-javascript; version=1.7"/>
 <script src="undotab.js" type="application/x-javascript; version=1.7"/>
 
+<stringbundleset id="stringbundleset">
+	<stringbundle id="undotab-bundle" src="chrome://undotab/locale/undotab.properties"/>
+</stringbundleset>
+
 </overlay>

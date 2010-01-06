@@ -9,6 +9,14 @@ var UndoTabService = {
 	},
 	_SessionStore : null,
  
+	get bundle() { 
+		if (!this._bundle) {
+			this._bundle = document.getElementById('undotab-bundle');
+		}
+		return this._bundle;
+	},
+	_bundle : null,
+ 
 	evalInSandbox : function UT_evalInSandbox(aCode, aOwner) 
 	{
 		try {
@@ -328,7 +336,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
-				label  : 'open new tab',
+				label  : this.bundle.getString('undo_addTab_label'),
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 					var newTab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
@@ -360,7 +368,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
-				label  : 'open new tab',
+				label  : this.bundle.getString('undo_loadOneTab_label'),
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 					var newTab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
@@ -392,7 +400,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
-				label  : 'close tab',
+				label  : this.bundle.getString('undo_removeTab_label'),
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 					var newTab = aTabBrowser.addTab('about:blank');
@@ -423,7 +431,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
-				label  : 'move tab',
+				label  : this.bundle.getString('undo_moveTab_label'),
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 					var tab = UndoTabService.getTabAt(newIndex, aTabBrowser);
@@ -454,7 +462,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
-				label  : 'new tab on drop',
+				label  : this.bundle.getString('undo_addTabOnDrop_label'),
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 					var tab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
@@ -470,10 +478,12 @@ var UndoTabService = {
 		var targetTab = aArgs[0];
 		var targetTabIndex = targetTab._tPos;
 		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(targetTab.ownerDocument.defaultView);
+		var targetLabel = this.bundle.getString('undo_importTab_target_label');
 
 		var remoteTab = aArgs[1];
 		var remoteTabIndex = remoteTab._tPos;
 		var remoteId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(remoteTab.ownerDocument.defaultView);
+		var remoteLabel = this.bundle.getString('undo_importTab_remote_label');
 
 		var remoteIsSelected = remoteTab.selected;
 
@@ -487,7 +497,7 @@ var UndoTabService = {
 					'TabbarOperations',
 					remoteWindow,
 					{
-						label  : 'export tab to foreign window',
+						label  : remoteLabel,
 						onUndo : function(aInfo) {
 							if (aInfo.level) return;
 
@@ -529,7 +539,7 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			(sourceEntry = {
-				label  : 'import tab from foreign window',
+				label  : targetLabel,
 				onUndo : function(aInfo) {
 					if (aInfo.level) return;
 
