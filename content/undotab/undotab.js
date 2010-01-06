@@ -959,7 +959,7 @@ var UndoTabService = {
 								return;
 							}
 
-							sourceEntry.onUndo();
+							sourceEntry.onUndo(aInfo);
 						},
 						onRedo : function(aInfo) {
 							if (aInfo.level) return;
@@ -976,7 +976,7 @@ var UndoTabService = {
 								return;
 							}
 
-							sourceEntry.onRedo();
+							sourceEntry.onRedo(aInfo);
 						}
 					}
 				);
@@ -1138,11 +1138,13 @@ var UndoTabService = {
 					if (remoteTabSelected)
 						targetBrowser.selectedTab = targetTab;
 
-					var continuation = aInfo.getContinuation();
-					remoteWindow.setTimeout(function() {
-						remoteWindow.close();
-						continuation();
-					}, 0);
+					if (isLast) {
+						var continuation = aInfo.getContinuation();
+						remoteWindow.setTimeout(function() {
+							remoteWindow.close();
+							continuation();
+						}, 0);
+					}
 				}
 			})
 		);
