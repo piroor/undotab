@@ -114,7 +114,7 @@
 
 		doUndoableTask : function()
 		{
-			log('doUndoableTask');
+			log('doUndoableTask start');
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			var entries = history.entries;
@@ -126,17 +126,17 @@
 
 			var data = options.data;
 			if (!this._doingUndo && data) {
-				log('register entry to history');
+				log('register new entry to history\n  '+data.label);
 				let f = this._getAvailableFunction(data.onRedo, data.onredo, data.redo);
 				if (!f && !data.onRedo && !data.onredo && !data.redo && options.task)
 					data.onRedo = options.task;
 
 				if (wasInUndoableTask) {
-					log('top level');
+					log(' => child level');
 					entries[entries.length-1].children.push(data);
 				}
 				else {
-					log('child level');
+					log(' => top level');
 					entries = entries.slice(0, history.index+1);
 					entries.push({
 						__proto__ : data,
@@ -163,6 +163,7 @@
 					);
 			}
 			catch(e) {
+				log(e);
 				error = e;
 			}
 
@@ -198,10 +199,10 @@
 			{
 				let entry = history.entries[history.index--];
 				if (!entry) continue;
-				log('undo '+(history.index+1)+' '+entry.label);
+				log('  '+(history.index+1)+' '+entry.label);
 				let done = false;
 				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
-					log('undo level '+(aIndex)+' '+aData.label);
+					log('    level '+(aIndex)+' '+aData.label);
 					let f = this._getAvailableFunction(aData.onUndo, aData.onundo, aData.undo);
 					try {
 						if (f) {
@@ -221,6 +222,7 @@
 						}
 					}
 					catch(e) {
+						log(e);
 						error = e;
 					}
 				}, this);
@@ -251,10 +253,10 @@
 			{
 				let entry = history.entries[++history.index];
 				if (!entry) continue;
-				log('redo '+(history.index)+' '+entry.label);
+				log('  '+(history.index)+' '+entry.label);
 				let done = false;
 				[entry.data].concat(entry.children).forEach(function(aData, aIndex) {
-					log('redo level '+(aIndex)+' '+aData.label);
+					log('    level '+(aIndex)+' '+aData.label);
 					let f = this._getAvailableFunction(aData.onRedo, aData.onredo, aData.redo);
 					let done = false;
 					try {
@@ -275,6 +277,7 @@
 						}
 					}
 					catch(e) {
+						log(e);
 						error = e;
 					}
 				}, this);

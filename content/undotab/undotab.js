@@ -413,7 +413,6 @@ var UndoTabService = {
 					if (!newTab) return false;
 					UndoTabService.makeTabUnrecoverable(newTab);
 					aTabBrowser.removeTab(newTab);
-					newTabIndex = -1;
 				},
 				onRedo : function(aInfo) {
 					if (aInfo.level) return;
@@ -444,7 +443,6 @@ var UndoTabService = {
 					var newTab = UndoTabService.getTabAt(newTabIndex, aTabBrowser);
 					if (!newTab) return false;
 					aTabBrowser.removeTab(newTab);
-					newTabIndex = -1;
 				},
 				onRedo : function(aInfo) {
 					if (aInfo.level) return;
