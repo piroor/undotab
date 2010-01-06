@@ -401,6 +401,22 @@ var UndoTabService = {
 			$1]]>
 		));
 
+		eval('aTabBrowser.removeAllTabsBut = '+aTabBrowser.removeAllTabsBut.toSource().replace(
+			'{',
+			<![CDATA[{
+				UndoTabService.onRemoveAllTabsBut(
+					function() {
+			]]>
+		).replace(
+			/(\}\)?)$/,
+			<![CDATA[
+					},
+					this,
+					arguments
+				);
+			$1]]>
+		));
+
 		if ('swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
 				'{',
@@ -720,6 +736,68 @@ var UndoTabService = {
 			}
 		);
 		return newTab;
+	},
+ 
+	onRemoveAllTabsBut : function UT_onRemoveAllTabsBut(aTask, aTabBrowser, aArguments) 
+	{
+		var tab = aArguments[0];
+		var position = tab ? tab._tPos : -1 ;
+		var positions = [];
+		var selected = -1;
+		var states = this.getTabsArray(aTabBrowser)
+						.filter(function(aTab) {
+							return aTab != tab;
+						})
+						.map(function(aTab, aIndex) {
+							if (aTab.selected)
+								selected = aIndex;
+							positions.push(aTab._tPos);
+							return this.SessionStore.getTabState(aTab);
+						}, this);
+
+		tab = null;
+		var canceled = false;
+		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+			function() {
+				var count = UndoTabService.getTabs(aTabBrowser).snapshotLength;
+				aTask.call(aTabBrowser);
+				canceled = UndoTabService.getTabs(aTabBrowser).snapshotLength == count;
+			},
+
+			'TabbarOperations',
+			window,
+			{
+				label  : this.bundle.getString('undo_removeAllTabsBut_label'),
+				onUndo : function(aInfo) {
+					if (aInfo.level) return;
+					if (canceled) return false;
+
+					states.forEach(function(aState, aIndex) {
+						var tab = aTabBrowser.addTab();
+						UndoTabService.SessionStore.setTabState(tab, aState);
+						aTabBrowser.moveTabTo(tab, positions[aIndex]);
+						positions[aIndex] = tab._tPos;
+						if (aIndex == selected)
+							aTabBrowser.selectedTab = tab;
+					});
+				},
+				onRedo : function(aInfo) {
+					if (aInfo.level) return;
+					if (canceled) return false;
+
+					var tab = UndoTabService.getTabAt(position, aTabBrowser);
+					if (!tab) return false;
+
+					UndoTabService.getTabsArray(aTabBrowser)
+						.reverse()
+						.forEach(function(aTab) {
+							if (aTab == tab) return;
+							UndoTabService.makeTabUnrecoverable(aTab);
+							aTabBrowser.removeTab(aTab);
+						});
+				}
+			}
+		);
 	},
  
 	onSwapBrowsersAndCloseOther : function UT_onSwapBrowsersAndCloseOther(aTask, aTabBrowser, aArguments) 
