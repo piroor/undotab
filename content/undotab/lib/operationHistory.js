@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 13;
+	const currentRevision = 14;
 	const DEBUG = true;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
@@ -114,8 +114,8 @@
 
 		doUndoableTask : function()
 		{
-			log('doUndoableTask start');
 			var options = this._getOptionsFromArguments(arguments);
+			log('doUndoableTask start ('+options.name+' for '+options.windowId+')');
 			var history = options.history;
 			var entries = history.entries;
 			var error;
@@ -132,11 +132,10 @@
 					data.onRedo = options.task;
 
 				if (wasInUndoableTask) {
-					log(' => child level');
 					entries[entries.length-1].children.push(data);
+					log(' => child level ('+(entries[entries.length-1].children.length-1)+')');
 				}
 				else {
-					log(' => top level');
 					entries = entries.slice(0, history.index+1);
 					entries.push({
 						__proto__ : data,
@@ -147,6 +146,7 @@
 
 					history.entries = entries;
 					history.index = entries.length;
+					log(' => top level ('+(entries.length-1)+')');
 				}
 			}
 
@@ -205,7 +205,7 @@
 		{
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
-			log('undo start ('+history.index+' / '+history.entries.length+', '+this._doingUndo+')');
+			log('undo start ('+history.index+' / '+history.entries.length+', '+options.name+' for '+options.windowId+', '+this._doingUndo+')');
 			if (history.index < 0 || this._doingUndo)
 				return false;
 
@@ -274,7 +274,7 @@
 			var options = this._getOptionsFromArguments(arguments);
 			var history = options.history;
 			var max = history.entries.length;
-			log('redo start ('+history.index+' / '+max+', '+this._doingUndo+')');
+			log('redo start ('+history.index+' / '+max+', '+options.name+' for '+options.windowId+', '+this._doingUndo+')');
 			if (history.index >= max || this._doingUndo)
 				return false;
 
@@ -465,7 +465,7 @@
 
 			var windowId = aWindow ? this.getWindowId(aWindow) : null ;
 			if (windowId)
-				aName += '::'+aName;
+				aName += '::'+windowId;
 
 			if (!(aName in this._tables)) {
 				this._tables[aName] = {
