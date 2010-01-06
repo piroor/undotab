@@ -417,6 +417,24 @@ var UndoTabService = {
 			$1]]>
 		));
 
+		if ('replaceTabWithWindow' in aTabBrowser) {
+			eval('aTabBrowser.replaceTabWithWindow = '+aTabBrowser.replaceTabWithWindow.toSource().replace(
+				'{',
+				<![CDATA[{
+					return UndoTabService.onNewWindowFromTab(
+						function() {
+				]]>
+			).replace(
+				/(\}\)?)$/,
+				<![CDATA[
+						},
+						this,
+						arguments
+					);
+				$1]]>
+			));
+		}
+
 		if ('swapBrowsersAndCloseOther' in aTabBrowser) {
 			eval('aTabBrowser.swapBrowsersAndCloseOther = '+aTabBrowser.swapBrowsersAndCloseOther.toSource().replace(
 				'{',
@@ -1051,17 +1069,18 @@ var UndoTabService = {
 		);
 	},
  
-	onNewWindowFromTab : function UT_openNewTabOnDrop(aTask, aTabBrowser, aTab) 
+	onNewWindowFromTab : function UT_onNewWindowFromTab(aTask, aTabBrowser, aTab) 
 	{
 		var sourceId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
 		var remoteId;
 		var position = aTab._tPos;
 		var selected = aTab.selected;
 		var entry;
+		var newWindow;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
 				var continuation = aInfo.getContinuation();
-				var newWindow = aTask.call(aTabBrowser);
+				newWindow = aTask.call(aTabBrowser);
 				newWindow.addEventListener('load', function() {
 					newWindow.removeEventListener('load', arguments.callee, false);
 					remoteId = aInfo.manager.getWindowId(newWindow);
@@ -1134,6 +1153,7 @@ var UndoTabService = {
 				}
 			})
 		);
+		return newWindow;
 	},
  
 	onUndoCloseTab : function UT_onUndoCloseTab(aTask, aThis, aArguments) 
