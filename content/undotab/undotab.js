@@ -125,7 +125,7 @@ var UndoTabService = {
 			).singleNodeValue;
 	},
  
-	importTab : function UT_importTab(aTab, aTabBrowser) 
+	importTabTo : function UT_importTabTo(aTab, aTabBrowser) 
 	{
 		var newTab = aTabBrowser.addTab('about:blank');
 		var browser = newTab.linkedBrowser;
@@ -960,9 +960,13 @@ var UndoTabService = {
 		var retVal;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
-				retVal = aTask.call(aTabBrowser);
 				var remoteWindow = aInfo.manager.getWindowById(remoteId);
-				aInfo.manager.addEntry(
+				// We have to do this operation as an undoable task in the remote window!
+				aInfo.manager.doUndoableTask(
+					function(aInfo) {
+						retVal = aTask.call(aTabBrowser);
+					},
+
 					'TabbarOperations',
 					remoteWindow,
 					{
@@ -1025,7 +1029,7 @@ var UndoTabService = {
 					if (isLast)
 						aTabBrowser.addTab();
 
-					var remoteTab = remoteWindow.UndoTabService.importTab(targetTab, remoteBrowser);
+					var remoteTab = remoteWindow.UndoTabService.importTabTo(targetTab, remoteBrowser);
 					remoteBrowser.moveTabTo(remoteTab, remoteTabPosition);
 					if (remoteIsSelected)
 						remoteBrowser.selectedTab = remoteTab;
@@ -1047,7 +1051,7 @@ var UndoTabService = {
 					var remoteBrowser = remoteWindow.gBrowser;
 					var remoteTab = remoteWindow.UndoTabService.getTabAt(remoteTabPosition, remoteBrowser);
 
-					var targetTab = targetWindow.UndoTabService.importTab(remoteTab, aTabBrowser);
+					var targetTab = targetWindow.UndoTabService.importTabTo(remoteTab, aTabBrowser);
 					aTabBrowser.moveTabTo(targetTab, targetTabPosition);
 					if (remoteIsSelected)
 						aTabBrowser.selectedTab = targetTab;
@@ -1061,7 +1065,7 @@ var UndoTabService = {
 		return retVal;
 	},
  
-	importTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser, aDraggedTab) 
+	importTabOnDrop : function UT_importTabOnDrop(aTask, aTabBrowser, aDraggedTab) 
 	{
 		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
 		var targetTabPosition = -1;
@@ -1075,9 +1079,12 @@ var UndoTabService = {
 
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
-				targetTabPosition = aTask.call(aTabBrowser)._tPos;
 				var remoteWindow = aInfo.manager.getWindowById(remoteId);
-				aInfo.manager.addEntry(
+				// We have to do this operation as an undoable task in the remote window!
+				aInfo.manager.doUndoableTask(
+					function(aInfo) {
+						targetTabPosition = aTask.call(aTabBrowser)._tPos;
+					},
 					'TabbarOperations',
 					remoteWindow,
 					{ __proto__ : entry,
@@ -1127,7 +1134,7 @@ var UndoTabService = {
 							return;
 						}
 						let remoteBrowser = remoteWindow.gBrowser;
-						let remoteTab = remoteWindow.UndoTabService.importTab(targetTab, remoteBrowser);
+						let remoteTab = remoteWindow.UndoTabService.importTabTo(targetTab, remoteBrowser);
 						remoteBrowser.moveTabTo(remoteTab, remoteTabPosition);
 						if (remoteTabSelected)
 							remoteBrowser.selectedTab = remoteTab;
@@ -1156,7 +1163,7 @@ var UndoTabService = {
 					if (isLast)
 						remoteBrowser.addTab('about:blank');
 
-					var targetTab = targetWindow.UndoTabService.importTab(remoteTab, targetBrowser);
+					var targetTab = targetWindow.UndoTabService.importTabTo(remoteTab, targetBrowser);
 					targetBrowser.moveTabTo(remoteTab, targetTabPosition);
 					if (remoteTabSelected)
 						targetBrowser.selectedTab = targetTab;
@@ -1244,7 +1251,7 @@ var UndoTabService = {
 
 					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
 					var remoteTab = remoteWindow.gBrowser.selectedTab;
-					var targetTab = targetWindow.UndoTabService.importTab(remoteTab, targetBrowser);
+					var targetTab = targetWindow.UndoTabService.importTabTo(remoteTab, targetBrowser);
 					targetBrowser.moveTabTo(targetTab, position);
 					position = targetTab._tPos;
 					if (selected)
