@@ -1164,7 +1164,7 @@ var UndoTabService = {
 						remoteBrowser.addTab('about:blank');
 
 					var targetTab = targetWindow.UndoTabService.importTabTo(remoteTab, targetBrowser);
-					targetBrowser.moveTabTo(remoteTab, targetTabPosition);
+					targetBrowser.moveTabTo(targetTab, targetTabPosition);
 					if (remoteTabSelected)
 						targetBrowser.selectedTab = targetTab;
 
