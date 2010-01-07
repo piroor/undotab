@@ -20,4 +20,5 @@
 
 
 
-<!ENTITY menu.label "タブの操作の履歴">
+<!ENTITY menu.label       "タブの操作の履歴">
+<!ENTITY menu.clear.label "履歴を消去">

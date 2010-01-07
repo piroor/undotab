@@ -15,7 +15,12 @@
 		label="&menu.label;">
 		<menupopup
 			onpopupshowing="UndoTabService.handleEvent(event);"
-			oncommand="UndoTabService.handleEvent(event);"/>
+			oncommand="UndoTabService.handleEvent(event);">
+			<menuseparator class="undotab-history-clear-separator"/>
+			<menuitem class="undotab-history-clear-item"
+				label="&menu.clear.label;"
+				value="clear"/>
+		</menupopup>
 	</menu>
 </menupopup>
 

@@ -235,13 +235,28 @@ var UndoTabService = {
  
 	updateMenuPopup : function UT_updateMenuPopup(aPopup) 
 	{
+		var separator = this.evaluateXPath(
+				'descendant::xul:menuseparator[@class="undotab-history-clear-separator"]',
+				aPopup,
+				XPathResult.FIRST_ORDERED_NODE_TYPE
+			).singleNodeValue;
+		var clearItem = this.evaluateXPath(
+				'descendant::xul:menuitem[@class="undotab-history-clear-item"]',
+				aPopup,
+				XPathResult.FIRST_ORDERED_NODE_TYPE
+			).singleNodeValue;
+
 		var range = document.createRange();
 		range.selectNodeContents(aPopup);
+		range.setEndBefore(separator);
 		range.deleteContents();
 
 		var fragment = document.createDocumentFragment();
 		var history = this.getHistory();
 		if (history.entries.length) {
+			separator.removeAttribute('collapsed');
+			clearItem.removeAttribute('collapsed');
+
 			let current = history.index;
 			history.entries
 				.forEach(function(aEntry, aIndex) {
@@ -263,6 +278,9 @@ var UndoTabService = {
 				}, this);
 		}
 		else {
+			separator.setAttribute('collapsed', true);
+			clearItem.setAttribute('collapsed', true);
+
 			let item = document.createElement('menuitem');
 			item.setAttribute('label', this.bundle.getString('history_blank_label'));
 			item.setAttribute('disabled', true);
@@ -581,9 +599,14 @@ var UndoTabService = {
 	onMenuCommand : function UT_onMenuCommand(aEvent) 
 	{
 		var index = aEvent.target.getAttribute('value');
-		index = parseInt(index);
-		if (!isNaN(index))
-			this.goToIndex(index);
+		if (index == 'clear') {
+			this.getHistory().clear();
+		}
+		else {
+			index = parseInt(index);
+			if (!isNaN(index))
+				this.goToIndex(index);
+		}
 	},
  
 	onTabOpen : function UT_onTabOpen(aTask, aTabBrowser, aTab, aArguments) 

@@ -19,4 +19,5 @@
 
 
 
-<!ENTITY menu.label "Tab Operations History">
+<!ENTITY menu.label       "Tab Operations History">
+<!ENTITY menu.clear.label "Clear History">
