@@ -430,7 +430,7 @@ var UndoTabService = {
 			<![CDATA[
 					},
 					this,
-					arguments
+					aTab
 				);
 			$1]]>
 		));
@@ -497,7 +497,7 @@ var UndoTabService = {
 							return newTab;
 						},
 						this,
-						[draggedTab]
+						draggedTab
 					);
 				]]>
 			).replace(
@@ -829,9 +829,9 @@ var UndoTabService = {
 		aTab = null;
 	},
  
-	onDuplicateTab : function UT_onDuplicateTab(aTask, aTabBrowser, aArguments) 
+	onDuplicateTab : function UT_onDuplicateTab(aTask, aTabBrowser, aTab) 
 	{
-		var sourceTab = aArguments[0];
+		var sourceTab = aTab;
 		var soruceBrowser = this.getTabBrowserFromChild(sourceTab);
 		var sourceTabIndex = sourceTab._tPos;
 		sourceTab = null;
@@ -873,6 +873,7 @@ var UndoTabService = {
 				}
 			}
 		);
+		aTab = null;
 		return newTab;
 	},
  
