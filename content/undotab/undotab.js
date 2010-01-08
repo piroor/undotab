@@ -718,6 +718,8 @@ var UndoTabService = {
 				onUndo : function(aInfo) {
 					if (aInfo.processed) return;
 
+					window['piro.sakura.ne.jp'].stopRendering.stop();
+
 					var tabs = UndoTabService.getTabsArray(aTabBrowser)
 								.filter(function(aTab, aIndex) {
 									return positions.indexOf(aIndex) > -1;
@@ -730,9 +732,12 @@ var UndoTabService = {
 						UndoTabService.makeTabUnrecoverable(aTab);
 						aTabBrowser.removeTab(aTab);
 					});
+
+					window['piro.sakura.ne.jp'].stopRendering.start();
 				},
 				onRedo : function(aInfo) {
 					if (aInfo.processed) return;
+					window['piro.sakura.ne.jp'].stopRendering.stop();
 					positions.forEach(function(aPosition, aIndex) {
 						var tab;
 						if (aIndex == 0 && replace) {
@@ -757,6 +762,7 @@ var UndoTabService = {
 					// 	if (!loadInBackgtound && aIndex == 0)
 					// 		aTabBrowser.selectedTab = tab;
 					// });
+					window['piro.sakura.ne.jp'].stopRendering.start();
 				}
 			}
 		);
@@ -919,6 +925,7 @@ var UndoTabService = {
 					if (aInfo.processed) return;
 					if (canceled) return false;
 
+					window['piro.sakura.ne.jp'].stopRendering.stop();
 					states.forEach(function(aState, aIndex) {
 						var tab = aTabBrowser.addTab();
 						UndoTabService.SessionStore.setTabState(tab, aState);
@@ -927,6 +934,7 @@ var UndoTabService = {
 						if (aIndex == selected)
 							aTabBrowser.selectedTab = tab;
 					});
+					window['piro.sakura.ne.jp'].stopRendering.start();
 				},
 				onRedo : function(aInfo) {
 					if (aInfo.processed) return;
@@ -935,6 +943,7 @@ var UndoTabService = {
 					var tab = UndoTabService.getTabAt(position, aTabBrowser);
 					if (!tab) return false;
 
+					window['piro.sakura.ne.jp'].stopRendering.stop();
 					UndoTabService.getTabsArray(aTabBrowser)
 						.reverse()
 						.forEach(function(aTab) {
@@ -942,6 +951,7 @@ var UndoTabService = {
 							UndoTabService.makeTabUnrecoverable(aTab);
 							aTabBrowser.removeTab(aTab);
 						});
+					window['piro.sakura.ne.jp'].stopRendering.start();
 				}
 			}
 		);
