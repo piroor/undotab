@@ -621,9 +621,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-addTab',
 				label  : this.bundle.getString('undo_addTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var newTab = UndoTabService.getTabAt(position, aTabBrowser);
 					if (!newTab) return false;
 					selected = newTab.selected;
@@ -631,7 +632,7 @@ var UndoTabService = {
 					aTabBrowser.removeTab(newTab);
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = aTabBrowser.addTab.apply(aTabBrowser, aArguments);
 					aTabBrowser.moveTabTo(tab, position);
 					position = tab._tPos;
@@ -656,9 +657,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-loadOneTab',
 				label  : this.bundle.getString('undo_loadOneTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var newTab = UndoTabService.getTabAt(position, aTabBrowser);
 					if (!newTab) return false;
 					selected = newTab.selected;
@@ -666,7 +668,7 @@ var UndoTabService = {
 					aTabBrowser.removeTab(newTab);
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = aTabBrowser.loadOneTab.apply(aTabBrowser, aArguments);
 					aTabBrowser.moveTabTo(tab, position);
 					position = tab._tPos;
@@ -711,9 +713,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-loadTabs',
 				label  : this.bundle.getString('undo_loadTabs_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var tabs = UndoTabService.getTabsArray(aTabBrowser)
 								.filter(function(aTab, aIndex) {
@@ -729,7 +732,7 @@ var UndoTabService = {
 					});
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					positions.forEach(function(aPosition, aIndex) {
 						var tab;
 						if (aIndex == 0 && replace) {
@@ -773,9 +776,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-removeTab',
 				label  : this.bundle.getString('undo_removeTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var newTab = aTabBrowser.addTab('about:blank');
 					UndoTabService.SessionStore.setTabState(newTab, state, false);
 					aTabBrowser.moveTabTo(newTab, position);
@@ -784,7 +788,7 @@ var UndoTabService = {
 						aTabBrowser.selectedTab = newTab;
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = UndoTabService.getTabAt(position, aTabBrowser);
 					if (!tab) return false;
 					selected = tab.selected;
@@ -808,16 +812,17 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-moveTab',
 				label  : this.bundle.getString('undo_moveTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = UndoTabService.getTabAt(newPosition, aTabBrowser);
 					if (!tab) return false;
 					aTabBrowser.moveTabTo(tab, oldPosition);
 					oldPosition = tab._tPos;
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = UndoTabService.getTabAt(oldPosition, aTabBrowser);
 					if (!tab) return false;
 					aTabBrowser.moveTabTo(tab, newPosition);
@@ -848,16 +853,17 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-duplicateTab',
 				label  : this.bundle.getString('undo_duplicateTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = UndoTabService.getTabAt(newTabPosition, aTabBrowser);
 					if (!tab) return false;
 					UndoTabService.makeTabUnrecoverable(tab);
 					aTabBrowser.removeTab(tab);
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var sourceTab, newTab;
 					if (
 						!soruceBrowser ||
@@ -907,9 +913,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-removeAllTabsBut',
 				label  : this.bundle.getString('undo_removeAllTabsBut_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					if (canceled) return false;
 
 					states.forEach(function(aState, aIndex) {
@@ -922,7 +929,7 @@ var UndoTabService = {
 					});
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					if (canceled) return false;
 
 					var tab = UndoTabService.getTabAt(position, aTabBrowser);
@@ -971,9 +978,10 @@ var UndoTabService = {
 					'TabbarOperations',
 					remoteWindow,
 					{
+						name   : 'undotab-swapBrowsersAndCloseOther',
 						label  : remoteLabel,
 						onUndo : function(aInfo) {
-							if (aInfo.level) return;
+							if (aInfo.processed) return;
 
 							var remoteWindow = aInfo.manager.getWindowById(remoteId);
 							var targetWindow = aInfo.manager.getWindowById(targetId);
@@ -990,7 +998,7 @@ var UndoTabService = {
 							sourceEntry.onUndo(aInfo);
 						},
 						onRedo : function(aInfo) {
-							if (aInfo.level) return;
+							if (aInfo.processed) return;
 
 							var remoteWindow = aInfo.manager.getWindowById(remoteId);
 							var targetWindow = aInfo.manager.getWindowById(targetId);
@@ -1015,7 +1023,7 @@ var UndoTabService = {
 			(sourceEntry = {
 				label  : targetLabel,
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
 					var targetWindow = aInfo.manager.getWindowById(targetId);
@@ -1041,7 +1049,7 @@ var UndoTabService = {
 						}, 0);
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
 					var targetWindow = aInfo.manager.getWindowById(targetId);
@@ -1076,9 +1084,10 @@ var UndoTabService = {
 		var remoteTabSelected = aDraggedTab.selected;
 
 		var targetEntry = {
+				name   : 'undotab-onDrop-importTab',
 				label  : this.bundle.getString('undo_importTabOnDrop_target_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var targetWindow = aInfo.manager.getWindowById(targetId);
 					if (!targetWindow) return false;
@@ -1126,7 +1135,7 @@ var UndoTabService = {
 					}
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var targetWindow = aInfo.manager.getWindowById(targetId);
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
@@ -1192,16 +1201,17 @@ var UndoTabService = {
 		var position = -1;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
-				if (aInfo.level) return;
+				if (aInfo.processed) return;
 				position = aTask.call(aTabBrowser)._tPos;
 			},
 
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-onDrop-addTab',
 				label  : this.bundle.getString('undo_addTabOnDrop_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 					var tab = UndoTabService.getTabAt(position, aTabBrowser);
 					UndoTabService.makeTabUnrecoverable(tab);
 					aTabBrowser.removeTab(tab);
@@ -1219,9 +1229,10 @@ var UndoTabService = {
 		var newWindow;
 
 		var targetEntry = {
+				name   : 'undotab-onDragEnd-tearOffTab',
 				label  : this.bundle.getString('undo_newWindowFromTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var remoteWindow = aInfo.manager.getWindowById(remoteId);
 					var targetWindow = aInfo.manager.getWindowById(sourceId);
@@ -1243,7 +1254,7 @@ var UndoTabService = {
 						targetBrowser.selectedTab = targetTab;
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					var sourceWindow = aInfo.manager.getWindowById(sourceId);
 					if (!sourceWindow) return false;
@@ -1320,9 +1331,10 @@ var UndoTabService = {
 			'TabbarOperations',
 			window,
 			{
+				name   : 'undotab-undoCloseTab',
 				label  : this.bundle.getString('undo_undoCloseTab_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					if (!tabbrowser || !tabbrowser.parentNode) {
 						tabbrowser = null;
@@ -1336,7 +1348,7 @@ var UndoTabService = {
 					tabbrowser.removeTab(tab);
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.level) return;
+					if (aInfo.processed) return;
 
 					if (!tabbrowser || !tabbrowser.parentNode) {
 						tabbrowser = null;
