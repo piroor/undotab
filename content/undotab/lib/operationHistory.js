@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 36;
+	const currentRevision = 37;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -157,7 +157,13 @@
 				!this._getUndoingState(options.key) &&
 				!this._getRedoingState(options.key)) {
 				let f = this._getAvailableFunction(entry.onRedo, entry.onredo, entry.redo);
-				if (!f && !entry.onRedo && !entry.onredo && !entry.redo && options.task)
+				if (
+					!f &&
+					!('onRedo' in entry) &&
+					!('onredo' in entry) &&
+					!('redo' in entry) &&
+					options.task
+					)
 					entry.onRedo = options.task;
 				history.addEntry(entry);
 			}
@@ -174,9 +180,6 @@
 						this,
 						{
 							level     : 0,
-							history   : history,
-							parent    : null,
-							processed : false,
 							manager   : this,
 							getContinuation : function() {
 								return this.manager._createContinuation(
@@ -248,12 +251,8 @@
 					if (!f) return;
 					try {
 						let info = {
-								level     : aIndex,
-								history   : history,
-								parent    : (aIndex ? entries[0] : null ),
-								processed : oneProcessed,
-								done      : oneProcessed, // old name
-								manager   : this,
+								level   : aIndex,
+								manager : this,
 								getContinuation : function() {
 									return this.manager._createContinuation(
 											continuationInfo.created ? 'null' : 'undo',
@@ -312,18 +311,15 @@
 				if (!entries.length) continue;
 				log((history.index)+' '+entries[0].label, 1);
 				let oneProcessed = false;
-				entries.some(function(aEntry, aIndex) {
+				let max = entries.length;
+				Array.slice(entries).reverse().some(function(aEntry, aIndex) {
 					log('level '+(aIndex)+' '+aEntry.label, 2);
 					let f = this._getAvailableFunction(aEntry.onRedo, aEntry.onredo, aEntry.redo);
 					if (!f) return;
 					try {
 						let info = {
-								level     : aIndex,
-								history   : history,
-								parent    : (aIndex ? entries[0] : null ),
-								processed : oneProcessed,
-								done      : oneProcessed, // old name
-								manager   : this,
+								level   : max-aIndex,
+								manager : this,
 								getContinuation : function() {
 									return this.manager._createContinuation(
 											continuationInfo.created ? 'null' : 'redo',
