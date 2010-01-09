@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 38;
+	const currentRevision = 39;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -153,9 +153,12 @@
 			log('doUndoableTask start ('+options.name+' for '+options.windowId+')', history.inOperationCount);
 
 			var entry = options.entry;
-			if (entry &&
+			var registered = false;
+			if (
+				entry &&
 				!this._getUndoingState(options.key) &&
-				!this._getRedoingState(options.key)) {
+				!this._getRedoingState(options.key)
+				) {
 				let f = this._getAvailableFunction(entry.onRedo, entry.onredo, entry.redo);
 				if (
 					!f &&
@@ -166,6 +169,7 @@
 					)
 					entry.onRedo = options.task;
 				history.addEntry(entry);
+				registered = true;
 			}
 
 			var continuationInfo = new ContinuationInfo();
@@ -174,9 +178,10 @@
 
 			history.inOperation = true;
 			var error;
+			var canceled;
 			try {
 				if (options.task)
-					options.task.call(
+					canceled = options.task.call(
 						this,
 						{
 							level     : 0,
@@ -194,6 +199,10 @@
 			catch(e) {
 				log(e, history.inOperationCount);
 				error = e;
+			}
+
+			if (registered && canceled === false) {
+				history.removeEntry(entry);
 			}
 
 			if (!continuationInfo.shouldWait) {
@@ -1122,6 +1131,25 @@
 			this.metaData = this.metaData.slice(-this.max);
 
 			this.index = this.entries.length;
+		},
+
+		removeEntry : function(aEntry)
+		{
+			for (let i = this.safeIndex; i > -1; i--)
+			{
+				let index = this._getEntriesAt(i).indexOf(aEntry);
+				if (index < 0) continue;
+
+				if (index == 0) {
+					this.entries.splice(index, 1);
+					this.metaData.splice(index, 1);
+					this.index--;
+				}
+				else {
+					this.metaData[i].children.splice(index-1, 1);
+				}
+				break;
+			}
 		},
 
 		get canUndo()
