@@ -153,6 +153,16 @@ var UndoTabService = {
 			.removeTab(aTab);
 	},
  
+	getTabState : function UT_getTabState(aTab) 
+	{
+		return this.SessionStore.getTabState(aTab);
+	},
+ 
+	setTabState : function UT_setTabState(aTab, aState) 
+	{
+		return this.SessionStore.setTabState(aTab, aState);
+	},
+ 
 	importTabTo : function UT_importTabTo(aTab, aTabBrowser) 
 	{
 		var newTab = aTabBrowser.addTab('about:blank');
@@ -680,7 +690,7 @@ var UndoTabService = {
 		var tabId     = this.getId(aTab);
 		var position;
 		var selected;
-		var session = UndoTabService.SessionStore.getTabState(aTab);
+		var state = this.getTabState(aTab);
 
 		this.manager.doUndoableTask(
 			function(aInfo) {
@@ -699,10 +709,10 @@ var UndoTabService = {
 
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
-					session = UndoTabService.SessionStore.getTabState(t.tab);
+					state = UndoTabService.getTabState(t.tab);
 					position = t.tab._tPos;
 					selected = t.tab.selected;
-					aInfo.manager.irrevocableRemoveTab(t.tab, t.browser);
+					UndoTabService.irrevocableRemoveTab(t.tab, t.browser);
 
 					window.setTimeout(function() {
 						window['piro.sakura.ne.jp'].stopRendering.start();
@@ -716,7 +726,7 @@ var UndoTabService = {
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
 					var tab = t.browser.addTab.apply(t.browser, aArguments);
-					UndoTabService.SessionStore.setTabState(tab, session);
+					UndoTabService.setTabState(tab, state);
 					tabId = aInfo.manager.getId(tab, tabId);
 
 					t.browser.moveTabTo(tab, position);
@@ -801,7 +811,7 @@ var UndoTabService = {
 							});
 				var replace = tabs.length - beforeTabs.length == uris.length - 1;
 				if (replace) {
-					currentTabState = UndoTabService.SessionStore.getTabState(aTabBrowser.selectedTab);
+					currentTabState = UndoTabService.getTabState(aTabBrowser.selectedTab);
 					tabs.unshift(aTabBrowser.selectedTab);
 				}
 				tabIds = tabs.map(function(aTab) {
@@ -821,7 +831,7 @@ var UndoTabService = {
 
 					selectedTabId = aInfo.manager.getId(t.browser.selectedTab);
 					if (replace)
-						UndoTabService.SessionStore.setTabState(t.tab, currentTabState);
+						UndoTabService.setTabState(t.tab, currentTabState);
 				},
 				onRedo : function(aInfo) {
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId, tabIds);
@@ -854,7 +864,7 @@ var UndoTabService = {
 		var tabId     = this.getId(aTab);
 		var position  = aTab._tPos;
 		var selected  = aTab.selected;
-		var state     = this.SessionStore.getTabState(aTab);
+		var state     = this.getTabState(aTab);
 
 		this.manager.doUndoableTask(
 			function() {
@@ -874,7 +884,7 @@ var UndoTabService = {
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
 					var tab = t.browser.addTab('about:blank');
-					UndoTabService.SessionStore.setTabState(tab, state, false);
+					UndoTabService.setTabState(tab, state, false);
 					tabId = aInfo.manager.getId(tab, tabId);
 
 					t.browser.moveTabTo(tab, position);
@@ -895,8 +905,8 @@ var UndoTabService = {
 
 					position = t.tab._tPos;
 					selected = t.tab.selected;
-					state    = UndoTabService.SessionStore.getTabState(t.tab);
-					aInfo.manager.irrevocableRemoveTab(t.tab, t.browser);
+					state    = UndoTabService.getTabState(t.tab);
+					UndoTabService.irrevocableRemoveTab(t.tab, t.browser);
 
 					window.setTimeout(function() {
 						window['piro.sakura.ne.jp'].stopRendering.start();
@@ -1098,7 +1108,7 @@ var UndoTabService = {
 		var remoteSelected  = this.getId(remoteBrowser.selectedTab);
 
 		var ourEntry = {
-				name   : 'undotab-swapBrowsersAndCloseOther',
+				name   : 'undotab-swapBrowsersAndCloseOther-our',
 				label  : this.bundle.getString('undo_swapBrowsersAndCloseOther_our_label'),
 				onUndo : function(aInfo) {
 					var our = UndoTabService.getTabOpetarionTargetsByIds(ourWindowId, ourParentId, ourBrowserId, ourTabId);
@@ -1141,8 +1151,8 @@ var UndoTabService = {
 						}
 						else {
 							remote.tab = remote.browser.addTab('about:blank');
+							aInfo.manager.setElementId(remote.tab, remoteTabId);
 						}
-						aInfo.manager.setElementId(remote.tab, remoteTabId);
 						remote.tab.linkedBrowser.stop();
 						remote.tab.linkedBrowser.docShell;
 						remote.browser.swapBrowsersAndCloseOther(remote.tab, our.tab);
@@ -1181,6 +1191,7 @@ var UndoTabService = {
 			};
 		var remoteEntry = {
 				__proto__ : ourEntry,
+				name      : 'undotab-swapBrowsersAndCloseOther-remote',
 				label     : this.bundle.getString('undo_swapBrowsersAndCloseOther_remote_label')
 			};
 
@@ -1422,7 +1433,7 @@ var UndoTabService = {
 					var tab = UndoTabService.getTabAt(position, tabbrowser);
 					if (!tab) return false;
 
-					state = UndoTabService.SessionStore.getTabState(tab);
+					state = UndoTabService.getTabState(tab);
 					tabbrowser.removeTab(tab);
 				},
 				onRedo : function(aInfo) {
@@ -1434,7 +1445,7 @@ var UndoTabService = {
 					}
 
 					var tab = tabbrowser.addTab();
-					UndoTabService.SessionStore.setTabState(tab, state);
+					UndoTabService.setTabState(tab, state);
 					tabbrowser.moveTabTo(tab, position);
 					position = tab._tPos;
 					if (selected)
