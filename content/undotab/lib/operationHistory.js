@@ -203,6 +203,9 @@
 
 			if (registered && canceled === false) {
 				history.removeEntry(entry);
+				log('  => doUndoableTask canceled : '+history.inOperation+
+					'\n'+history.toString(),
+					history.inOperationCount);
 			}
 
 			if (!continuationInfo.shouldWait) {
@@ -576,8 +579,10 @@
 
 		getId : function(aTarget, aDefaultId)
 		{
-			if (aTarget instanceof Ci.nsIDOMDocument)
+			if (aTarget instanceof Ci.nsIDOMWindow)
 				return this.getWindowId(aTarget, aDefaultId);
+			if (aTarget instanceof Ci.nsIDOMDocument)
+				return this.getWindowId(aTarget.defaultView, aDefaultId);
 			if (aTarget instanceof Ci.nsIDOMElement)
 				return this.getElementId(aTarget, aDefaultId);
 			throw new Error(aTarget+' is an unknown type item.');
@@ -1215,27 +1220,32 @@
 
 		toString : function()
 		{
-			var entries = this.entries;
-			var metaData = this.metaData;
-			var index = this.index;
-			var string = entries
-							.map(function(aEntry, aIndex) {
-								var children = metaData[aIndex].children.length;
-								children = children ? ' ('+children+')' : '' ;
-								var name = aEntry.name;
-								name = name ? ' ['+name+']' : '' ;
-								return (aIndex == index ? '*' : ' ' )+
-										' '+aIndex+': '+aEntry.label+
-										name+
-										children;
-							}, this)
-							.join('\n');
-			if (index < 0)
-				string = '* -1: -----\n' + string;
-			else if (index >= entries.length)
-				string += '\n* '+entries.length+': -----';
+			try {
+				var entries = this.entries;
+				var metaData = this.metaData;
+				var index = this.index;
+				var string = entries
+								.map(function(aEntry, aIndex) {
+									var children = metaData[aIndex].children.length;
+									children = children ? ' ('+children+')' : '' ;
+									var name = aEntry.name;
+									name = name ? ' ['+name+']' : '' ;
+									return (aIndex == index ? '*' : ' ' )+
+											' '+aIndex+': '+aEntry.label+
+											name+
+											children;
+								}, this)
+								.join('\n');
+				if (index < 0)
+					string = '* -1: -----\n' + string;
+				else if (index >= entries.length)
+					string += '\n* '+entries.length+': -----';
 
-			return this.key+'\n'+string;
+				return this.key+'\n'+string;
+			}
+			catch(e) {
+				return this.key+'\n'+e;
+			}
 		}
 	};
 

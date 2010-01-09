@@ -1070,15 +1070,17 @@ var UndoTabService = {
 		var ourBrowser   = this.getTabBrowserFromChild(ourTab);
 		var ourBrowserId = this.getId(ourBrowser);
 		var ourParentId  = this.getBindingParentId(ourBrowser);
-		var ourWindowId  = this.manager.getWindowId(ourTab.ownerDocument.defaultView);
+		var ourWindow    = ourTab.ownerDocument.defaultView;
+		var ourWindowId  = this.getId(ourWindow);
 		var ourSelected  = this.getId(ourBrowser.selectedTab);
 
-		var remoteTab       = aArguments[0];
+		var remoteTab       = aArguments[1];
 		var remoteTabId     = this.getId(remoteTab);
 		var remoteBrowser   = this.getTabBrowserFromChild(remoteTab);
 		var remoteBrowserId = this.getId(remoteBrowser);
 		var remoteParentId  = this.getBindingParentId(remoteBrowser);
-		var remoteWindowId  = this.manager.getWindowId(remoteTab.ownerDocument.defaultView);
+		var remoteWindow    = remoteTab.ownerDocument.defaultView;
+		var remoteWindowId  = this.getId(remoteWindow);
 		var remoteSelected  = this.getId(remoteBrowser.selectedTab);
 
 		var ourEntry = {
@@ -1090,11 +1092,10 @@ var UndoTabService = {
 						return false;
 
 					var remote = UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId);
-					if (!remote.window || !remote.window.closed) {
+					if (!remote.window || remote.window.closed) {
 						// The remote window was closed automatically.
 						// So, we have to reopen the window.
 						var continuation = aInfo.getContinuation();
-						;
 						var remoteWindow = our.browser.replaceTabWithWindow(our.tab);
 						remoteWindow.addEventListener('load', function() {
 							remoteWindow.removeEventListener('load', arguments.callee, false);
@@ -1117,22 +1118,18 @@ var UndoTabService = {
 							windows : [our.window, remote.window]
 						});
 
-						var selected = aInfo.getTargetById(ourSelected, our.browser.mTabContainer);
+						var selected = aInfo.manager.getTargetById(ourSelected, our.browser.mTabContainer);
 						if (selected)
 							our.browser.selectedTab = selected;
 
-						var continuation = aInfo.getContinuation();
-						our.window.setTimeout(function() {
-							var tab = remote.browser.addTab('about:blank');
-							aInfo.manager.setElementId(tab, remoteTabId);
-							tab.linkedBrowser.stop();
-							tab.linkedBrowser.docShell;
-							remote.browser.swapBrowsersAndCloseOther(tab, our.tab);
-							var selected = aInfo.getTargetById(remoteSelected, remote.browser.mTabContainer);
-							if (selected)
-								remote.browser.selectedTab = selected;
-							continuation();
-						}, 10);
+						var tab = remote.browser.addTab('about:blank');
+						aInfo.manager.setElementId(tab, remoteTabId);
+						tab.linkedBrowser.stop();
+						tab.linkedBrowser.docShell;
+						remote.browser.swapBrowsersAndCloseOther(tab, our.tab);
+						selected = aInfo.manager.getTargetById(remoteSelected, remote.browser.mTabContainer);
+						if (selected)
+							remote.browser.selectedTab = selected;
 					}
 				},
 				onRedo : function(aInfo) {
@@ -1168,21 +1165,33 @@ var UndoTabService = {
 			};
 
 		var retVal;
-		this.manager.doUndoableTask(
-			function(aInfo) {
-				aInfo.manager.doUndoableTask(
-					function(aInfo) {
-						retVal = aTask.call(aTabBrowser);
-					},
-					'TabbarOperations',
-					window,
-					ourEntry
-				);
-			},
-			'TabbarOperations',
-			remoteTab.ownerDocument.defaultView,
-			remoteEntry
-		);
+		if (remoteWindow == ourWindow) {
+			this.manager.doUndoableTask(
+				function(aInfo) {
+					retVal = aTask.call(aTabBrowser);
+				},
+				'TabbarOperations',
+				ourWindow,
+				ourEntry
+			);
+		}
+		else {
+			this.manager.doUndoableTask(
+				function(aInfo) {
+					aInfo.manager.doUndoableTask(
+						function(aInfo) {
+							retVal = aTask.call(aTabBrowser);
+						},
+						'TabbarOperations',
+						remoteWindow,
+						remoteEntry
+					);
+				},
+				'TabbarOperations',
+				ourWindow,
+				ourEntry
+			);
+		}
 
 		aTask       = undefined;
 		aTabBrowser = undefined;
@@ -1190,8 +1199,10 @@ var UndoTabService = {
 
 		ourTab     = undefined;
 		ourBrowser = undefined;
+		ourWindow  = undefined;
 		remoteTab     = undefined;
 		remoteBrowser = undefined;
+		remoteWindwo  = undefined;
 
 		return retVal;
 	},
