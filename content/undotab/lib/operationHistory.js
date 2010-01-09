@@ -1394,36 +1394,10 @@
 		}
 	};
 
-	function ContinuationInfo()
-	{
-		this.called  = false;
-		this.allowed = false;
-		this.created = false;
-		this._done   = null;
-	}
-	ContinuationInfo.prototype = {
-		get shouldWait()
-		{
-			return this.created && !this.called;
-		},
-		get done()
-		{
-			if (this._done !== null)
-				return this._done;
-			return !this.shouldWait;
-		},
-		set done(aValue)
-		{
-			this._done = aValue;
-			return aValue;
-		}
-	};
-
 	// export
 	window['piro.sakura.ne.jp'].operationHistory.UIHistory         = UIHistory;
 	window['piro.sakura.ne.jp'].operationHistory.UIHistoryProxy    = UIHistoryProxy;
 	window['piro.sakura.ne.jp'].operationHistory.UIHistoryMetaData = UIHistoryMetaData;
-	window['piro.sakura.ne.jp'].operationHistory.ContinuationInfo  = ContinuationInfo;
 
 	window['piro.sakura.ne.jp'].operationHistory.init();
 })();
