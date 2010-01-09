@@ -1265,7 +1265,6 @@ var UndoTabService = {
 					remoteEntry
 				);
 			},
-
 			'TabbarOperations',
 			window,
 			ourEntry
