@@ -1090,13 +1090,13 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		var ourTab       = aArguments[0];
-		var ourBrowser   = this.getTabBrowserFromChild(ourTab);
-		var ourWindow    = ourTab.ownerDocument.defaultView;
+		var ourTab     = aArguments[0];
+		var ourBrowser = this.getTabBrowserFromChild(ourTab);
+		var ourWindow  = ourTab.ownerDocument.defaultView;
 
-		var remoteTab       = aArguments[1];
-		var remoteBrowser   = this.getTabBrowserFromChild(remoteTab);
-		var remoteWindow    = remoteTab.ownerDocument.defaultView;
+		var remoteTab     = aArguments[1];
+		var remoteBrowser = this.getTabBrowserFromChild(remoteTab);
+		var remoteWindow  = remoteTab.ownerDocument.defaultView;
 
 		var data = {
 				ourTabId     : this.getId(ourTab),
@@ -1325,14 +1325,10 @@ var UndoTabService = {
 				sourceSelected  : aSourceTab.selected,
 				sourceBrowserId : this.getId(sourceBrowser),
 				sourceParentId  : this.getBindingParentId(sourceBrowser),
-				sourceWindow    : null,
 				sourceWindowId  : this.getId(sourceWindow),
 
 				newWindowId : null
 			};
-
-		sourceBrowser = undefined;
-		sourceWindow  = undefined;
 
 		var sourceEntry = {
 				name  : 'undotab-tearOffTab-source',
@@ -1350,8 +1346,11 @@ var UndoTabService = {
 		var newWindow;
 		this.manager.doUndoableTask(
 			function(aInfo) {
-				var continuation = aInfo.getContinuation();
 				newWindow = aTask.call(aTabBrowser);
+				if (!newWindow)
+					return false;
+
+				var continuation = aInfo.getContinuation();
 				newWindow.addEventListener('load', function() {
 					newWindow.removeEventListener('load', arguments.callee, false);
 					data.newWindowId = aInfo.manager.getWindowId(newWindow);
@@ -1369,6 +1368,10 @@ var UndoTabService = {
 			sourceWindow,
 			sourceEntry
 		);
+
+		sourceBrowser = undefined;
+		sourceWindow  = undefined;
+
 		return newWindow;
 	},
 	onUndoTearOffTab : function UT_onUndoTearOffTab(aEvent)
@@ -1420,7 +1423,7 @@ var UndoTabService = {
 				// the state of the manager is still "redoing" when
 				// just after continuation() is called.
 				newWindow.setTimeout(function() {
-					aEvent.manager.addEntry('TabbarOperations', newWindow, newEntry);
+					aEvent.manager.addEntry('TabbarOperations', newWindow, data.newEntry);
 				}, 50);
 			}, 10);
 		}, false);
