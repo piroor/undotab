@@ -1115,6 +1115,9 @@ var UndoTabService = {
 								aInfo.manager.setElementId(b, remoteBrowserId);
 								aInfo.manager.setBindingParentId(b, remoteParentId);
 								continuation();
+								// We have to register new entry with delay, because
+								// the state of the manager is still "undoing" when
+								// just after continuation() is called.
 								remoteWindow.setTimeout(function() {
 									aInfo.manager.addEntry('TabbarOperations', remoteWindow, remoteEntry);
 								}, 50);
@@ -1355,6 +1358,9 @@ var UndoTabService = {
 						newWindowId = aInfo.manager.setWindowId(newWindow, newWindowId);
 						newWindow.setTimeout(function() {
 							continuation();
+							// We have to register new entry with delay, because
+							// the state of the manager is still "redoing" when
+							// just after continuation() is called.
 							newWindow.setTimeout(function() {
 								aInfo.manager.addEntry('TabbarOperations', newWindow, newEntry);
 							}, 50);
