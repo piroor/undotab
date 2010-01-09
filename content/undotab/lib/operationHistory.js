@@ -250,58 +250,88 @@
 			this._setUndoingState(options.key, true);
 			var processed = false;
 			var error;
-			var continuationInfo = new ContinuationInfo();
 
-			do {
-				let entries = history.currentEntries;
-				--history.index;
-				if (!entries.length) continue;
-				log((history.index+1)+' '+entries[0].label, 1);
-				let oneProcessed = false;
-				let max = entries.length;
-				Array.slice(entries).reverse().some(function(aEntry, aIndex) {
-					log('level '+(max-aIndex)+' '+aEntry.label, 2);
-					let f = this._getAvailableFunction(aEntry.onUndo, aEntry.onundo, aEntry.undo);
-					if (!f) return;
-					try {
-						let info = {
-								level   : max-aIndex,
-								manager : this,
-								window  : window,
-								getContinuation : function() {
-									return this.manager._createContinuation(
-											continuationInfo.created ? 'null' : 'undo',
-											options,
-											continuationInfo
-										);
-								}
-							};
-						if (f.call(aEntry, info) !== false)
-							oneProcessed = true;
+			var self = this;
+			var iterator = (function() {
+					do {
+						let entries = history.currentEntries;
+						--history.index;
+						if (!entries.length) continue;
+						log((history.index+1)+' '+entries[0].label, 1);
+						let oneProcessed = false;
+						let max = entries.length;
+						entries = Array.slice(entries).reverse();
+						for (let i in entries)
+						{
+							let entry = entries[i];
+							log('level '+(max-i)+' '+entry.label, 2);
+							let f = self._getAvailableFunction(entry.onUndo, entry.onundo, entry.undo);
+							if (!f) return;
+							let finished = true;
+							try {
+								let info = {
+										level   : max-i,
+										manager : self,
+										window  : window,
+										getContinuation : function() {
+											finished = false;
+											return function() {
+												finished = true;
+											};
+										}
+									};
+								if (f.call(entry, info) !== false)
+									oneProcessed = true;
+							}
+							catch(e) {
+								log(e, 2);
+								error = e;
+								break;
+							}
+							while (!finished)
+							{
+								yield true;
+							}
+							self._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry, oneProcessed);
+						}
+						if (error) break;
+						processed = oneProcessed;
 					}
-					catch(e) {
-						log(e, 2);
-						return error = e;
-					}
-				}, this);
-				if (error) break;
-				processed = oneProcessed;
-				this._dispatchEvent('UIOperationGlobalHistoryUndo', options, entries[0], oneProcessed);
+					while (processed === false && history.canUndo);
+				})();
+
+			var selfInfo = { done : true };
+			try {
+				selfInfo.done = !iterator.next();
 			}
-			while (processed === false && history.canUndo);
-
-			if (error || continuationInfo.done) {
-				this._setUndoingState(options.key, false);
-				log('  => undo finish\n'+history.toString());
+			catch(e) {
+			}
+			if (!selfInfo.done) {
+				var timer = window.setInterval(function() {
+						try {
+							iterator.next();
+						}
+						catch(e) {
+							selfInfo.done = true;
+							self._setUndoingState(options.key, false);
+							log('  => undo finish (delayed)\n'+history.toString());
+							window.clearInterval(timer);
+						}
+						finally {
+							if (error)
+								throw error;
+						}
+					}, 10);
 			}
 			else {
-				continuationInfo.allowed = true;
+				this._setUndoingState(options.key, false);
+				log('  => undo finish\n'+history.toString());
 			}
 
 			if (error)
 				throw error;
 
-			return continuationInfo;
+			return selfInfo;
 		},
 
 		redo : function()
@@ -317,57 +347,86 @@
 			this._setRedoingState(options.key, true);
 			var processed = false;
 			var error;
-			var continuationInfo = new ContinuationInfo();
 
-			while (processed === false && history.canRedo)
-			{
-				++history.index;
-				let entries = history.currentEntries;
-				if (!entries.length) continue;
-				log((history.index)+' '+entries[0].label, 1);
-				let oneProcessed = false;
-				entries.some(function(aEntry, aIndex) {
-					log('level '+(aIndex)+' '+aEntry.label, 2);
-					let f = this._getAvailableFunction(aEntry.onRedo, aEntry.onredo, aEntry.redo);
-					if (!f) return;
-					try {
-						let info = {
-								level   : aIndex,
-								manager : this,
-								window  : window,
-								getContinuation : function() {
-									return this.manager._createContinuation(
-											continuationInfo.created ? 'null' : 'redo',
-											options,
-											continuationInfo
-										);
-								}
-							};
-						if (f.call(aEntry, info) !== false)
-							oneProcessed = true;
+			var self = this;
+			var iterator = (function() {
+					while (processed === false && history.canRedo)
+					{
+						++history.index;
+						let entries = history.currentEntries;
+						if (!entries.length) continue;
+						log((history.index)+' '+entries[0].label, 1);
+						let oneProcessed = false;
+						for (let i in entries)
+						{
+							let entry = entries[i];
+							log('level '+(i)+' '+entry.label, 2);
+							let f = self._getAvailableFunction(entry.onRedo, entry.onredo, entry.redo);
+							if (!f) return;
+							let finished = true;
+							try {
+								let info = {
+										level   : i,
+										manager : self,
+										window  : window,
+										getContinuation : function() {
+											finished = false;
+											return function() {
+												finished = true;
+											};
+										}
+									};
+								if (f.call(entry, info) !== false)
+									oneProcessed = true;
+							}
+							catch(e) {
+								log(e, 2);
+								error = e;
+								break;
+							}
+							while (!finished)
+							{
+								yield true;
+							}
+							self._dispatchEvent('UIOperationGlobalHistoryRedo', options, entry, oneProcessed);
+						}
+						if (error) break;
+						processed = oneProcessed;
 					}
-					catch(e) {
-						log(e, 2);
-						return error = e;
-					}
-				}, this);
-				if (error) break;
-				processed = oneProcessed;
-				this._dispatchEvent('UIOperationGlobalHistoryRedo', options, entries[0], oneProcessed);
+				})();
+
+			var selfInfo = { done : true };
+			try {
+				selfInfo.done = !iterator.next();
 			}
-
-			if (error || continuationInfo.done) {
-				this._setRedoingState(options.key, false);
-				log('  => redo finish\n'+history.toString());
+			catch(e) {
+			}
+			if (!selfInfo.done) {
+				var timer = window.setInterval(function() {
+						try {
+							iterator.next();
+						}
+						catch(e) {
+							selfInfo.done = true;
+							self._setRedoingState(options.key, false);
+							log('  => redo finish (delayed)\n'+history.toString());
+							window.clearInterval(timer);
+						}
+						finally {
+							if (error)
+								throw error;
+						}
+					}, 10);
 			}
 			else {
-				continuationInfo.allowed = true;
+				this._setRedoingState(options.key, false);
+				log('  => redo finish\n'+history.toString());
 			}
 
 			if (error)
 				throw error;
 
-			return continuationInfo;
+			return selfInfo;
 		},
 
 		goToIndex : function()
