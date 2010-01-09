@@ -439,7 +439,6 @@
 			if (index == current)
 				return { done : true };
 
-			var selfInfo = { done : false };
 			var self = this;
 			var iterator = (function() {
 					while (true)
@@ -458,20 +457,28 @@
 
 						while (!info.done)
 						{
-							yield;
+							yield true;
 						}
 					}
 				})();
 
-			var timer = window.setInterval(function() {
-					try {
-						iterator.next();
-					}
-					catch(e) {
-						selfInfo.done = true;
-						window.clearInterval(timer);
-					}
-				}, 10);
+			var selfInfo = { done : true };
+			try {
+				selfInfo.done = !iterator.next();
+			}
+			catch(e) {
+			}
+			if (!selfInfo.done) {
+				var timer = window.setInterval(function() {
+						try {
+							iterator.next();
+						}
+						catch(e) {
+							selfInfo.done = true;
+							window.clearInterval(timer);
+						}
+					}, 10);
+			}
 
 			return selfInfo;
 		},
