@@ -561,7 +561,6 @@ var UndoTabService = {
 					UndoTabService.importTabOnDrop(
 						function() {
 							$1
-							return newTab;
 						},
 						this,
 						draggedTab
@@ -573,7 +572,6 @@ var UndoTabService = {
 					UndoTabService.openNewTabOnDrop(
 						function() {
 							$1
-							return newTab;
 						},
 						this
 					);
@@ -1178,6 +1176,7 @@ var UndoTabService = {
 		else {
 			this.manager.doUndoableTask(
 				function(aInfo) {
+					// We have to do this operation as an undoable task in the remote window!
 					aInfo.manager.doUndoableTask(
 						function(aInfo) {
 							retVal = aTask.call(aTabBrowser);
@@ -1202,7 +1201,7 @@ var UndoTabService = {
 		ourWindow  = undefined;
 		remoteTab     = undefined;
 		remoteBrowser = undefined;
-		remoteWindwo  = undefined;
+		remoteWindow  = undefined;
 
 		return retVal;
 	},
@@ -1212,112 +1211,24 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		var targetId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(window);
-		var targetTabPosition = -1;
-
-		var remoteId = window['piro.sakura.ne.jp'].operationHistory.getWindowId(aDraggedTab.ownerDocument.defaultView);
-		var remoteTabPosition = aDraggedTab._tPos;
-		var remoteTabSelected = aDraggedTab.selected;
-
-		var targetEntry = {
+		var ourEntry = {
 				name   : 'undotab-onDrop-importTab',
 				label  : this.bundle.getString('undo_importTabOnDrop_target_label'),
-				onUndo : function(aInfo) {
-					if (aInfo.processed) return;
-
-					var targetWindow = aInfo.manager.getWindowById(targetId);
-					if (!targetWindow) return false;
-
-					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
-					var targetTab = targetWindow.UndoTabService.getTabAt(targetTabPosition, targetBrowser);
-
-					var remoteWindow = aInfo.manager.getWindowById(remoteId);
-					if (!remoteWindow) {
-						let continuation = aInfo.getContinuation();
-						targetWindow.setTimeout(function() {
-							var remoteWindow = targetBrowser.replaceTabWithWindow(targetTab);
-							remoteWindow.addEventListener('load', function() {
-								remoteWindow.removeEventListener('load', arguments.callee, false);
-								remoteId = aInfo.manager.getWindowId(remoteWindow);
-								remoteWindow.setTimeout(function() { // wait for tab swap
-									continuation();
-									aInfo.manager.addEntry(
-										'TabbarOperations',
-										remoteWindow,
-										remoteEntry
-									);
-									aInfo.manager.syncWindowHistoryFocus({
-										currentEntry : targetEntry,
-										name    : 'TabbarOperations',
-										entries : [targetEntry, remoteEntry],
-										windows : [targetWindow, remoteWindow]
-									});
-								}, 0);
-							}, false);
-						}, 0);
-					}
-					else {
-						aInfo.manager.syncWindowHistoryFocus({
-							currentEntry : this,
-							name    : 'TabbarOperations',
-							entries : [targetEntry, remoteEntry],
-							windows : [targetWindow, remoteWindow]
-						});
-						let remoteBrowser = remoteWindow.gBrowser;
-						let remoteTab = remoteWindow.UndoTabService.importTabTo(targetTab, remoteBrowser);
-						remoteBrowser.moveTabTo(remoteTab, remoteTabPosition);
-						if (remoteTabSelected)
-							remoteBrowser.selectedTab = remoteTab;
-					}
-				},
-				onRedo : function(aInfo) {
-					if (aInfo.processed) return;
-
-					var targetWindow = aInfo.manager.getWindowById(targetId);
-					var remoteWindow = aInfo.manager.getWindowById(remoteId);
-					if (!targetWindow || !remoteWindow) return false;
-
-					aInfo.manager.syncWindowHistoryFocus({
-						currentEntry : this,
-						name    : 'TabbarOperations',
-						entries : [targetEntry, remoteEntry],
-						windows : [targetWindow, remoteWindow]
-					});
-
-					var targetBrowser = aTabBrowser && aTabBrowser.parentNode ? aTabBrowser : targetWindow.gBrowser;
-					var remoteBrowser = remoteWindow.gBrowser;
-					var remoteTab = remoteWindow.UndoTabService.getTabAt(remoteTabPosition, remoteBrowser);
-
-					var isLast = remoteWindow.UndoTabService.getTabs(remoteBrowser).length == 1;
-					if (isLast)
-						remoteBrowser.addTab('about:blank');
-
-					var targetTab = targetWindow.UndoTabService.importTabTo(remoteTab, targetBrowser);
-					targetBrowser.moveTabTo(targetTab, targetTabPosition);
-					if (remoteTabSelected)
-						targetBrowser.selectedTab = targetTab;
-
-					if (isLast) {
-						let continuation = aInfo.getContinuation();
-						remoteWindow.setTimeout(function() {
-							remoteWindow.close();
-							continuation();
-						}, 0);
-					}
-				}
+				onUndo : null,
+				onRedo : null
 			};
 		var remoteEntry = {
-				__proto__ : targetEntry,
+				__proto__ : ourEntry,
 				label     : this.bundle.getString('undo_importTabOnDrop_remote_label')
 			};
 
-		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
+		var remoteWindow = aDraggedTab.ownerDocument.defaultView;
+		this.manager.doUndoableTask(
 			function(aInfo) {
-				var remoteWindow = aInfo.manager.getWindowById(remoteId);
 				// We have to do this operation as an undoable task in the remote window!
 				aInfo.manager.doUndoableTask(
 					function(aInfo) {
-						targetTabPosition = aTask.call(aTabBrowser)._tPos;
+						aTask.call(aTabBrowser);
 					},
 					'TabbarOperations',
 					remoteWindow,
@@ -1327,9 +1238,14 @@ var UndoTabService = {
 
 			'TabbarOperations',
 			window,
-			targetEntry
+			ourEntry
 		);
-		aDraggedTab = null;
+
+		aTask       = undefined;
+		aTabBrowser = undefined;
+		aDraggedTab = undefined;
+
+		remoteWindow = undefined;
 	},
  
 	openNewTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser) 
@@ -1340,8 +1256,7 @@ var UndoTabService = {
 		var position = -1;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
-				if (aInfo.processed) return;
-				position = aTask.call(aTabBrowser)._tPos;
+				aTask.call(aTabBrowser);
 			},
 
 			'TabbarOperations',
@@ -1349,12 +1264,8 @@ var UndoTabService = {
 			{
 				name   : 'undotab-onDrop-addTab',
 				label  : this.bundle.getString('undo_addTabOnDrop_label'),
-				onUndo : function(aInfo) {
-					if (aInfo.processed) return;
-					var tab = UndoTabService.getTabAt(position, aTabBrowser);
-					aInfo.manager.makeTabUnrecoverable(tab);
-					aTabBrowser.removeTab(tab);
-				}
+				onUndo : null,
+				onRedo : null
 			}
 		);
 	},
