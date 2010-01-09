@@ -1115,7 +1115,9 @@ var UndoTabService = {
 								aInfo.manager.setElementId(b, remoteBrowserId);
 								aInfo.manager.setBindingParentId(b, remoteParentId);
 								continuation();
-								aInfo.manager.addEntry('TabbarOperations', remoteWindow, remoteEntry);
+								remoteWindow.setTimeout(function() {
+									aInfo.manager.addEntry('TabbarOperations', remoteWindow, remoteEntry);
+								}, 50);
 							}, 10);
 						}, false);
 						return;
@@ -1353,7 +1355,9 @@ var UndoTabService = {
 						newWindowId = aInfo.manager.setWindowId(newWindow, newWindowId);
 						newWindow.setTimeout(function() {
 							continuation();
-							aInfo.manager.addEntry('TabbarOperations', newWindow, newEntry);
+							newWindow.setTimeout(function() {
+								aInfo.manager.addEntry('TabbarOperations', newWindow, newEntry);
+							}, 50);
 						}, 10);
 					}, false);
 				}
