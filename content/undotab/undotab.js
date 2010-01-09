@@ -652,7 +652,8 @@ var UndoTabService = {
 		var parentId  = this.getBindingParentId(aTabBrowser);
 		var browserId = this.getId(aTabBrowser);
 		var tabId     = this.getId(aTab);
-		var selected  = aTab.selected;
+		var position;
+		var selected;
 		var session;
 
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
@@ -673,6 +674,7 @@ var UndoTabService = {
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
 					session = UndoTabService.SessionStore.getTabState(t.tab);
+					position = t.tab._tPos;
 					selected = t.tab.selected;
 					aInfo.manager.makeTabUnrecoverable(t.tab);
 					t.browser.removeTab(t.tab);
@@ -692,6 +694,10 @@ var UndoTabService = {
 					UndoTabService.SessionStore.setTabState(tab, session);
 					session = null;
 					tabId = aInfo.manager.getId(tab, tabId);
+
+					t.browser.moveTabTo(tab, position);
+					position = tab._tPos;
+
 					if (selected)
 						t.browser.selectedTab = tab;
 
@@ -752,16 +758,14 @@ var UndoTabService = {
 
 		var uris             = aArguments[0];
 		var loadInBackgtound = aArguments[1];
-		var replace          = aArguments[2];
 
 		var parentId  = this.getBindingParentId(aTabBrowser);
 		var browserId = this.getId(aTabBrowser);
-		var currentTabId    = this.getId(aTabBrowser.selectedTab);
-		var currentTabState = replace ? this.SessionStore.getTabState(aTabBrowser.selectedTab) : null ;
-
+		var currentTabState;
 		var selectedTabId;
-
 		var tabIds;
+
+		var replace;
 
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
 			function(aInfo) {
@@ -771,8 +775,11 @@ var UndoTabService = {
 							.filter(function(aTab) {
 								return beforeTabs.indexOf(aTab) < 0;
 							});
-				if (replace)
+				var replace = tabs.length - beforeTabs.length == uris.length - 1;
+				if (replace) {
+					currentTabState = UndoTabService.SessionStore.getTabState(aTabBrowser.selectedTab);
 					tabs.unshift(aTabBrowser.selectedTab);
+				}
 				tabIds = tabs.map(function(aTab) {
 						return aInfo.manager.getId(aTab);
 					});
@@ -784,7 +791,6 @@ var UndoTabService = {
 				name   : 'undotab-loadTabs',
 				label  : this.bundle.getString('undo_loadTabs_label'),
 				onUndo : function(aInfo) {
-
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId);
 					if (!t.browser)
 						return false;
@@ -839,8 +845,10 @@ var UndoTabService = {
 				label  : this.bundle.getString('undo_removeTab_label'),
 				onUndo : function(aInfo) {
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId);
-					if (!t.browser)
+					if (!t.browser) {
+						alert('CANCEL UNDO');
 						return false;
+					}
 
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
@@ -860,13 +868,16 @@ var UndoTabService = {
 				},
 				onRedo : function(aInfo) {
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId, tabId);
-					if (!t.browser || !t.tab)
+					if (!t.browser || !t.tab) {
+						alert('CANCEL REDO');
 						return false;
+					}
 
 					window['piro.sakura.ne.jp'].stopRendering.stop();
 
 					position = t.tab._tPos;
 					selected = t.tab.selected;
+					state    = UndoTabService.SessionStore.getTabState(t.tab);
 					aInfo.manager.makeTabUnrecoverable(t.tab);
 					t.browser.removeTab(t.tab);
 
