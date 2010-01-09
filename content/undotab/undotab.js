@@ -1336,12 +1336,12 @@ var UndoTabService = {
 
 		var sourceEntry = {
 				name  : 'undotab-tearOffTab-source',
-				label : this.bundle.getString('undo_newWindowFromTab_label'),
+				label : this.bundle.getString('undo_tearOffTab_label'),
 				data  : data
 			};
 		var newEntry = {
 				name  : 'undotab-tearOffTab-new',
-				label : this.bundle.getString('undo_newWindowFromTab_label'),
+				label : this.bundle.getString('undo_tearOffTab_label'),
 				data  : data
 			};
 		data.sourceEntry = sourceEntry;
