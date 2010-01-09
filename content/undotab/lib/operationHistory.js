@@ -172,12 +172,12 @@
 				registered = true;
 			}
 
-			history.inOperation = true;
-
 			var error;
 			var canceled;
 			var selfInfo = { done : true };
 			if (options.task) {
+				history.inOperation = true;
+
 				var self = this;
 				var iterator = (function() {
 						var finished = true;
@@ -185,7 +185,7 @@
 							canceled = options.task.call(
 								this,
 								{
-									level   : 0,
+									level   : history.inOperationCount-1,
 									manager : self,
 									window  : window,
 									getContinuation : function() {
@@ -275,7 +275,7 @@
 						if (!entries.length) continue;
 						log((history.index+1)+' '+entries[0].label, 1);
 						let oneProcessed = false;
-						let max = entries.length;
+						let max = entries.length-1;
 						entries = Array.slice(entries).reverse();
 						for (let i in entries)
 						{
@@ -308,7 +308,6 @@
 							{
 								yield true;
 							}
-							self._dispatchEvent('UIOperationGlobalHistoryUndo', options, entry, oneProcessed);
 						}
 						if (error) break;
 						processed = oneProcessed;
@@ -403,7 +402,6 @@
 							{
 								yield true;
 							}
-							self._dispatchEvent('UIOperationGlobalHistoryRedo', options, entry, oneProcessed);
 						}
 						if (error) break;
 						processed = oneProcessed;
@@ -800,19 +798,6 @@
 		destroy : function()
 		{
 			window.removeEventListener('unload', this, false);
-		},
-
-		_dispatchEvent : function(aType, aOptions, aEntry, aProcessed)
-		{
-			var d = aOptions.window ? aOptions.window.document : document ;
-			var event = d.createEvent('Events');
-			event.initEvent(aType, true, false);
-			event.name  = aOptions.name;
-			event.entry = aEntry;
-			event.data  = aEntry; // old name
-			event.processed = aProcessed || false;
-			event.done      = aProcessed || false; // old name
-			d.dispatchEvent(event);
 		},
 
 		_evaluateXPath : function(aExpression, aContext, aType) 
