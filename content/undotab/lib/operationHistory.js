@@ -180,7 +180,6 @@
 
 				var self = this;
 				var iterator = (function() {
-						var finished = true;
 						try {
 							canceled = options.task.call(
 								this,
@@ -189,9 +188,9 @@
 									manager : self,
 									window  : window,
 									getContinuation : function() {
-										finished = false;
+										selfInfo.done = false;
 										return function() {
-											finished = true;
+											selfInfo.done = true;
 										};
 									}
 								}
@@ -227,7 +226,6 @@
 								iterator.next();
 							}
 							catch(e) {
-								selfInfo.done = true;
 								onFinish();
 								window.clearInterval(timer);
 							}
