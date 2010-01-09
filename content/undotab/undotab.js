@@ -788,7 +788,7 @@ var UndoTabService = {
 							.filter(function(aTab) {
 								return beforeTabs.indexOf(aTab) < 0;
 							});
-				data.replace = (tabs.length - beforeTabs.length) == (data.uris.length - 1);
+				data.replace = (data.uris.length - tabs.length) == 1;
 				if (data.replace) {
 					data.currentTabState = UndoTabService.getTabState(aTabBrowser.selectedTab);
 					tabs.unshift(aTabBrowser.selectedTab);
