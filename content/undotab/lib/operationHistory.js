@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 37;
+	const currentRevision = 38;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -1107,11 +1107,6 @@
 				this._addNewEntry(aEntry);
 				log(' => level 0 (new entry at '+(this.entries.length-1)+')', this.inOperationCount);
 			}
-
-			if (aEntry.insertBefore)
-				this._insertBefore(aEntry, aEntry.insertBefore);
-			else if (aEntry.name)
-				this._checkInsertion(aEntry);
 		},
 		_addNewEntry : function(aEntry)
 		{
@@ -1127,65 +1122,6 @@
 			this.metaData = this.metaData.slice(-this.max);
 
 			this.index = this.entries.length;
-		},
-		_insertBefore : function(aEntry, aNames)
-		{
-			if (typeof aNames == 'string')
-				aNames = [aNames];
-
-			if (!aNames.length)
-				return;
-
-			var index = this.safeIndex;
-			var metaData = this.metaData[index];
-			var insertionPositions = aNames.map(function(aName) {
-						return metaData.names.indexOf(aName);
-					})
-					.filter(function(aIndex) {
-						return aIndex > -1;
-					})
-					.sort();
-			if (!insertionPositions.length)
-				return;
-
-			var position = insertionPositions[0];
-			var entries = this._getEntriesAt(index);
-			entries.splice(entries.indexOf(aEntry), 1);
-			entries.splice(position, 0, aEntry);
-			this._setEntriesAt(entries, index);
-			log(' => moved (inserted) to level '+position, this.inOperationCount);
-
-			metaData.registerInsertionTarget(aEntry, aNames);
-		},
-		_checkInsertion : function(aEntry)
-		{
-			var name = aEntry.name;
-			var index = this.safeIndex;
-			var metaData = this.metaData[index];
-			if (!(name in metaData.insertionTargets))
-				return;
-
-			var entries = this._getEntriesAt(index);
-			var indexes = metaData
-					.insertionTargets[name]
-					.map(function(aEntry) {
-						return entries.indexOf(aEntry);
-					})
-					.sort()
-					.reverse();
-
-			if (!indexes.length)
-				return;
-
-			var position = indexes[0]+1;
-			var currentPosition = entries.indexOf(aEntry);
-			if (position < currentPosition)
-				return;
-
-			entries.splice(currentPosition, 1);
-			entries.splice(position, 0, aEntry);
-			this._setEntriesAt(entries, index);
-			log(' => moved (inserted) to level '+position, this.inOperationCount);
 		},
 
 		get canUndo()
@@ -1229,29 +1165,6 @@
 		get lastEntries()
 		{
 			return this._getEntriesAt(this.entries.length-1);
-		},
-
-		_setEntriesAt : function(aEntries, aIndex)
-		{
-			if (aIndex < 0 || aIndex >= this.entries.length)
-				return aEntries;
-
-			this.metaData[aIndex].names = aEntries.map(function(aEntry) {
-					return aEntry.name;
-				});
-			var parent = aEntries[0];
-			var children = aEntries.slice(1);
-			this.entries[aIndex] = parent;
-			this.metaData[aIndex].children = children;
-			return aEntries;
-		},
-		set currentEntries(aEntries)
-		{
-			return this._setEntriesAt(aEntries, this.index);
-		},
-		set lastEntries(aEntries)
-		{
-			return this._setEntriesAt(aEntries, this.entries.length-1);
 		},
 
 		_getPromotionOptions : function(aArguments)
