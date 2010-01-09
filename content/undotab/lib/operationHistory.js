@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 43;
+	const currentRevision = 44;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -174,7 +174,7 @@
 
 			var error;
 			var canceled;
-			var selfInfo = { done : true };
+			var done = { done : true };
 			if (options.task) {
 				history.inOperation = true;
 
@@ -188,9 +188,9 @@
 									manager : self,
 									window  : window,
 									getContinuation : function() {
-										selfInfo.done = false;
+										done.done = false;
 										return function() {
-											selfInfo.done = true;
+											done.done = true;
 										};
 									}
 								}
@@ -200,7 +200,7 @@
 							log(e, history.inOperationCount);
 							error = e;
 						}
-						while (!finished)
+						while (!done.done)
 						{
 							yield true;
 						}
@@ -214,20 +214,23 @@
 								history.inOperationCount);
 						}
 						history.inOperation = false;
-						log('  => doUndoableTask finish / in operation : '+history.inOperation+
+						log('  => doUndoableTask done / in operation : '+history.inOperation+
 							'\n'+history.toString(),
 							history.inOperationCount);
 					};
 
 				try {
-					selfInfo.done = !iterator.next();
-					let timer = window.setInterval(function() {
+					done.done = !iterator.next();
+					new ScheduledTask(function() {
 							try {
 								iterator.next();
 							}
-							catch(e) {
+							catch(e if e instanceof StopIteration) {
 								onFinish();
-								window.clearInterval(timer);
+								return false;
+							}
+							catch(e) {
+								return false;
 							}
 							finally {
 								if (error)
@@ -235,7 +238,7 @@
 							}
 						}, 10);
 				}
-				catch(e) {
+				catch(e if e instanceof StopIteration) {
 					onFinish();
 				}
 			}
@@ -243,7 +246,7 @@
 			if (error)
 				throw error;
 
-			return selfInfo;
+			return done;
 		},
 
 		getHistory : function()
@@ -281,16 +284,16 @@
 							log('level '+(max-i)+' '+entry.label, 2);
 							let f = self._getAvailableFunction(entry.onUndo, entry.onundo, entry.undo);
 							if (!f) return;
-							let finished = true;
+							let done = true;
 							try {
 								let info = {
 										level   : max-i,
 										manager : self,
 										window  : window,
 										getContinuation : function() {
-											finished = false;
+											done = false;
 											return function() {
-												finished = true;
+												done = true;
 											};
 										}
 									};
@@ -302,7 +305,7 @@
 								error = e;
 								break;
 							}
-							while (!finished)
+							while (!done)
 							{
 								yield true;
 							}
@@ -315,20 +318,23 @@
 
 			var onFinish = function() {
 					self._setUndoingState(options.key, false);
-					log('  => undo finish\n'+history.toString());
+					log('  => undo done\n'+history.toString());
 				};
 
-			var selfInfo = { done : true };
+			var done = { done : true };
 			try {
-				selfInfo.done = !iterator.next();
-				let timer = window.setInterval(function() {
+				done.done = !iterator.next();
+				new ScheduledTask(function() {
 						try {
 							iterator.next();
 						}
-						catch(e) {
-							selfInfo.done = true;
+						catch(e if e instanceof StopIteration) {
+							done.done = true;
 							onFinish();
-							window.clearInterval(timer);
+							return false;
+						}
+						catch(e) {
+							return false;
 						}
 						finally {
 							if (error)
@@ -336,14 +342,14 @@
 						}
 					}, 10);
 			}
-			catch(e) {
+			catch(e if e instanceof StopIteration) {
 				onFinish();
 			}
 
 			if (error)
 				throw error;
 
-			return selfInfo;
+			return done;
 		},
 
 		redo : function()
@@ -375,16 +381,16 @@
 							log('level '+(i)+' '+entry.label, 2);
 							let f = self._getAvailableFunction(entry.onRedo, entry.onredo, entry.redo);
 							if (!f) return;
-							let finished = true;
+							let done = true;
 							try {
 								let info = {
 										level   : i,
 										manager : self,
 										window  : window,
 										getContinuation : function() {
-											finished = false;
+											done = false;
 											return function() {
-												finished = true;
+												done = true;
 											};
 										}
 									};
@@ -396,7 +402,7 @@
 								error = e;
 								break;
 							}
-							while (!finished)
+							while (!done)
 							{
 								yield true;
 							}
@@ -408,20 +414,23 @@
 
 			var onFinish = function() {
 					self._setRedoingState(options.key, false);
-					log('  => redo finish\n'+history.toString());
+					log('  => redo done\n'+history.toString());
 				};
 
-			var selfInfo = { done : true };
+			var done = { done : true };
 			try {
-				selfInfo.done = !iterator.next();
-				let timer = window.setInterval(function() {
+				done.done = !iterator.next();
+				new ScheduledTask(function() {
 						try {
 							iterator.next();
 						}
-						catch(e) {
-							selfInfo.done = true;
+						catch(e if e instanceof StopIteration) {
+							done.done = true;
 							onFinish();
-							window.clearInterval(timer);
+							return false;
+						}
+						catch(e) {
+							return false;
 						}
 						finally {
 							if (error)
@@ -429,14 +438,14 @@
 						}
 					}, 10);
 			}
-			catch(e) {
+			catch(e if e instanceof StopIteration) {
 				onFinish();
 			}
 
 			if (error)
 				throw error;
 
-			return selfInfo;
+			return done;
 		},
 
 		goToIndex : function()
@@ -472,23 +481,27 @@
 					}
 				})();
 
-			var selfInfo = { done : true };
+			var done = { done : true };
 			try {
-				selfInfo.done = !iterator.next();
-				let timer = window.setInterval(function() {
+				done.done = !iterator.next();
+				new ScheduledTask(function() {
 						try {
 							iterator.next();
 						}
-						catch(e) {
-							selfInfo.done = true;
+						catch(e if e instanceof StopIteration) {
+							done.done = true;
 							window.clearInterval(timer);
+							return false;
+						}
+						catch(e) {
+							return false;
 						}
 					}, 10);
 			}
 			catch(e) {
 			}
 
-			return selfInfo;
+			return done;
 		},
 
 		isUndoing : function()
@@ -978,11 +991,11 @@
 
 		_getUndoingState : function(aKey)
 		{
-			return this._db.undoing && aKey in this._db.undoing;
+			return this._db.undoing ? aKey in this._db.undoing : false ;
 		},
 		_getRedoingState : function(aKey)
 		{
-			return this._db.redoing && aKey in this._db.redoing;
+			return this._db.redoing ? aKey in this._db.redoing : false ;
 		},
 
 		_setUndoingState : function(aKey, aState)
@@ -1305,10 +1318,46 @@
 		}
 	};
 
+	function ScheduledTask(aTask, aInterval) 
+	{
+		this.task = aTask;
+		this.init(aInterval);
+	}
+	ScheduledTask.prototype = {
+		init : function(aInterval)
+		{
+			this.timer = Cc['@mozilla.org/timer;1']
+							.createInstance(Ci.nsITimer);
+			this.timer.init(this, aInterval, Ci.nsITimer.TYPE_REPEATING_SLACK);
+		},
+		cancel : function()
+		{
+			try {
+				this.timer.cancel();
+			}
+			catch(e) {
+			}
+			delete this.timer;
+			delete this.task;
+		},
+		observe : function(aSubject, aTopic, aData)
+		{
+			if (aTopic != 'timer-callback') return;
+			try {
+				if (this.task() === false)
+					this.cancel();
+			}
+			catch(e) {
+				this.cancel();
+			}
+		}
+	};
+
 	// export
 	window['piro.sakura.ne.jp'].operationHistory.UIHistory         = UIHistory;
 	window['piro.sakura.ne.jp'].operationHistory.UIHistoryProxy    = UIHistoryProxy;
 	window['piro.sakura.ne.jp'].operationHistory.UIHistoryMetaData = UIHistoryMetaData;
+	window['piro.sakura.ne.jp'].operationHistory.ScheduledTask     = ScheduledTask;
 
 	window['piro.sakura.ne.jp'].operationHistory.init();
 })();
