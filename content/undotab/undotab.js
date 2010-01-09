@@ -612,21 +612,6 @@ var UndoTabService = {
 				]]>
 			));
 		}
-
-		if ('_onDragEnd' in aTabBrowser) {
-			eval('aTabBrowser._onDragEnd = '+aTabBrowser._onDragEnd.toSource().replace(
-				/(this.replaceTabWithWindow\(draggedTab\);)/,
-				<![CDATA[
-					UndoTabService.onNewWindowFromTab(
-						function() {
-							return $1
-						},
-						this,
-						draggedTab
-					);
-				]]>
-			));
-		}
 	},
   
 	destroy : function UT_destroy() 
@@ -1111,11 +1096,11 @@ var UndoTabService = {
 				name   : 'undotab-swapBrowsersAndCloseOther-our',
 				label  : this.bundle.getString('undo_swapBrowsersAndCloseOther_our_label'),
 				onUndo : function(aInfo) {
-					var our = UndoTabService.getTabOpetarionTargetsByIds(ourWindowId, ourParentId, ourBrowserId, ourTabId);
+					var our = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(ourWindowId, ourParentId, ourBrowserId, ourTabId);
 					if (!our.window || !our.browser || !our.tab)
 						return false;
 
-					var remote = UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId);
+					var remote = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId);
 					if (!remote.window || remote.window.closed) {
 						// The remote window was closed automatically.
 						// So, we have to reopen the window.
@@ -1163,10 +1148,10 @@ var UndoTabService = {
 						remote.browser.selectedTab = selected;
 				},
 				onRedo : function(aInfo) {
-					var our = UndoTabService.getTabOpetarionTargetsByIds(ourWindowId, ourParentId, ourBrowserId, ourTabId);
+					var our = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(ourWindowId, ourParentId, ourBrowserId, ourTabId);
 					if (!our.window || !our.browser)
 						return false;
-					var remote = UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId)
+					var remote = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId)
 					if (!remote.window || !remote.browser || !remote.tab)
 						return false;
 
@@ -1334,7 +1319,7 @@ var UndoTabService = {
 				name   : 'undotab-onDragEnd-tearOffTab',
 				label  : this.bundle.getString('undo_newWindowFromTab_label'),
 				onUndo : function(aInfo) {
-					var source = UndoTabService.getTabOpetarionTargetsByIds(sourceWindowId, sourceParentId, sourceBrowserId);
+					var source = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(sourceWindowId, sourceParentId, sourceBrowserId);
 					if (!source.window || !source.browser)
 						return false;
 					var remoteWindow = aInfo.manager.getTargetById(newWindowId);
@@ -1357,7 +1342,7 @@ var UndoTabService = {
 						source.browser.selectedTab = restoredTab;
 				},
 				onRedo : function(aInfo) {
-					var source = UndoTabService.getTabOpetarionTargetsByIds(sourceWindowId, sourceParentId, sourceBrowserId, sourceTabId);
+					var source = aInfo.window.UndoTabService.getTabOpetarionTargetsByIds(sourceWindowId, sourceParentId, sourceBrowserId, sourceTabId);
 					if (!source.window || !source.browser || !source.tab)
 						return false;
 
@@ -1365,24 +1350,15 @@ var UndoTabService = {
 					var newWindow = source.browser.replaceTabWithWindow(source.tab);
 					newWindow.addEventListener('load', function() {
 						newWindow.removeEventListener('load', arguments.callee, false);
-						newWindowId = aInfo.manager.getWindowId(newWindow);
-						newWindow.setTimeout(function() { // wait for tab swap
+						newWindowId = aInfo.manager.setWindowId(newWindow, newWindowId);
+						newWindow.setTimeout(function() {
 							continuation();
-							// While redoing, addEntry() is ignored. So, we have to call
-							// continuation() before calling addEntry().
-							aInfo.manager.addEntry(
-								'TabbarOperations',
-								newWindow,
-								newEntry
-							);
+							aInfo.manager.addEntry('TabbarOperations', newWindow, newEntry);
 						}, 10);
 					}, false);
 				}
 			};
-		var newEntry = {
-				__proto__ : sourceEntry,
-				onRedo    : null
-			};
+		var newEntry = { __proto__ : sourceEntry };
 
 		this.manager.doUndoableTask(
 			function(aInfo) {

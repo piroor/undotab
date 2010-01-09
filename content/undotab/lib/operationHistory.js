@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 41;
+	const currentRevision = 42;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -184,8 +184,9 @@
 					canceled = options.task.call(
 						this,
 						{
-							level     : 0,
-							manager   : this,
+							level   : 0,
+							manager : this,
+							window  : window,
 							getContinuation : function() {
 								return this.manager._createContinuation(
 										'undoable',
@@ -266,6 +267,7 @@
 						let info = {
 								level   : max-aIndex,
 								manager : this,
+								window  : window,
 								getContinuation : function() {
 									return this.manager._createContinuation(
 											continuationInfo.created ? 'null' : 'undo',
@@ -332,6 +334,7 @@
 						let info = {
 								level   : aIndex,
 								manager : this,
+								window  : window,
 								getContinuation : function() {
 									return this.manager._createContinuation(
 											continuationInfo.created ? 'null' : 'redo',
