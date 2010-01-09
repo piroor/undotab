@@ -224,7 +224,7 @@ var UndoTabService = {
  
 	getId : function UT_getId(aTarget, aDefaultId)
 	{
-		return this.getId(aTarget, aDefaultId);
+		return this.manager.getId(aTarget, aDefaultId);
 	},
 	getBindingParentId : function UT_getBindingParentId(aTarget, aDefaultId)
 	{
@@ -650,9 +650,11 @@ var UndoTabService = {
 					case 'undotab-duplicateTab':     return this.onUndoDuplicateTab(aEvent);
 					case 'undotab-removeAllTabsBut': return this.onUndoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
-					case 'undotab-swapBrowsersAndCloseOther-remote': return this.onUndoSwapBrowsersAndCloseOther(aEvent);
+					case 'undotab-swapBrowsersAndCloseOther-remote':
+							return this.onUndoSwapBrowsersAndCloseOther(aEvent);
 					case 'undotab-tearOffTab-source':
-					case 'undotab-tearOffTab-new': return this.onUndoTearOffTab(aEvent);
+					case 'undotab-tearOffTab-new':
+							return this.onUndoTearOffTab(aEvent);
 					case 'undotab-undoCloseTab': return this.onUndoUndoCloseTab(aEvent);
 				}
 				break;
@@ -667,9 +669,11 @@ var UndoTabService = {
 					case 'undotab-duplicateTab':     return this.onRedoDuplicateTab(aEvent);
 					case 'undotab-removeAllTabsBut': return this.onRedoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
-					case 'undotab-swapBrowsersAndCloseOther-remote': return this.onRedoSwapBrowsersAndCloseOther(aEvent);
+					case 'undotab-swapBrowsersAndCloseOther-remote':
+							return this.onRedoSwapBrowsersAndCloseOther(aEvent);
 					case 'undotab-tearOffTab-source':
-					case 'undotab-tearOffTab-new': return this.onRedoTearOffTab(aEvent);
+					case 'undotab-tearOffTab-new':
+							return this.onRedoTearOffTab(aEvent);
 					case 'undotab-undoCloseTab': return this.onRedoUndoCloseTab(aEvent);
 				}
 				break;
@@ -912,12 +916,11 @@ var UndoTabService = {
 			function() {
 				aTask.call(aTabBrowser);
 			},
-
 			'TabbarOperations',
 			window,
 			{
 				name  : 'undotab-moveTab',
-				label : this.bundle.getString('undo_moveTab_label')
+				label : this.bundle.getString('undo_moveTab_label'),
 				data  : {
 					parentId    : this.getBindingParentId(aTabBrowser),
 					browserId   : this.getId(aTabBrowser),
@@ -1050,7 +1053,7 @@ var UndoTabService = {
 				data  : {
 					parentId      : this.getBindingParentId(aTabBrowser),
 					browserId     : this.getId(aTabBrowser),
-					selectedTabId : this.getId(aTabBrowser.selectedTab,
+					selectedTabId : this.getId(aTabBrowser.selectedTab),
 					selectedTabPosition : aTabBrowser.selectedTab._tPos
 				}
 			}
@@ -1120,7 +1123,7 @@ var UndoTabService = {
 				data  : data
 			};
 		data.ourEntry = ourEntry;
-		data.remoteEntry = remoteEntry:
+		data.remoteEntry = remoteEntry;
 
 		var retVal;
 		if (remoteWindow == ourWindow) {
