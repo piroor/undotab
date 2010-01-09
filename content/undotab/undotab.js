@@ -129,6 +129,30 @@ var UndoTabService = {
 			).singleNodeValue;
 	},
  
+	makeTabBlank : function UT_makeTabBrank(aTab)
+	{
+		var b = aTab.linkedBrowser;
+		try {
+			b.stop();
+			if (b.sessionHistory)
+				b.sessionHistory.PurgeHistory(b.sessionHistory.count);
+		}
+		catch(e) {
+			dump(e+'\n');
+		}
+		if (b.contentWindow && b.contentWindow.location)
+			b.contentWindow.location.replace('about:blank');
+	},
+ 
+	irrevocableRemoveTab : function UT_irrevocableRemoveTab(aTab, aTabBrowser)
+	{
+		// nsSessionStore.js doesn't save the tab to the undo cache
+		// if the tab is completely blank.
+		this.makeTabBlank(aTab);
+		(aTabBrowser || this.getTabBrowserFromChild(aTab))
+			.removeTab(aTab);
+	},
+ 
 	importTabTo : function UT_importTabTo(aTab, aTabBrowser) 
 	{
 		var newTab = aTabBrowser.addTab('about:blank');
@@ -656,7 +680,7 @@ var UndoTabService = {
 		var tabId     = this.getId(aTab);
 		var position;
 		var selected;
-		var session;
+		var session = UndoTabService.SessionStore.getTabState(aTab);
 
 		this.manager.doUndoableTask(
 			function(aInfo) {
@@ -678,8 +702,7 @@ var UndoTabService = {
 					session = UndoTabService.SessionStore.getTabState(t.tab);
 					position = t.tab._tPos;
 					selected = t.tab.selected;
-					aInfo.manager.makeTabUnrecoverable(t.tab);
-					t.browser.removeTab(t.tab);
+					aInfo.manager.irrevocableRemoveTab(t.tab, t.browser);
 
 					window.setTimeout(function() {
 						window['piro.sakura.ne.jp'].stopRendering.start();
@@ -694,7 +717,6 @@ var UndoTabService = {
 
 					var tab = t.browser.addTab.apply(t.browser, aArguments);
 					UndoTabService.SessionStore.setTabState(tab, session);
-					session = undefined;
 					tabId = aInfo.manager.getId(tab, tabId);
 
 					t.browser.moveTabTo(tab, position);
@@ -813,7 +835,6 @@ var UndoTabService = {
 					var selected = aInfo.manager.getTargetById(selectedTabId, t.browser);
 					if (selected)
 						t.browser.selectedTab = selected;
-					selectedTabId = undefined;
 				}
 			}
 		);
@@ -875,8 +896,7 @@ var UndoTabService = {
 					position = t.tab._tPos;
 					selected = t.tab.selected;
 					state    = UndoTabService.SessionStore.getTabState(t.tab);
-					aInfo.manager.makeTabUnrecoverable(t.tab);
-					t.browser.removeTab(t.tab);
+					aInfo.manager.irrevocableRemoveTab(t.tab, t.browser);
 
 					window.setTimeout(function() {
 						window['piro.sakura.ne.jp'].stopRendering.start();
@@ -976,8 +996,7 @@ var UndoTabService = {
 						return false;
 
 					ourSelected = our.tab.selected;
-					aInfo.manager.makeTabUnrecoverable(our.tab);
-					our.browser.removeTab(our.tab);
+					aInfo.manager.irrevocableRemoveTab(our.tab, our.browser);
 				},
 				onRedo : function(aInfo) {
 					var remote = UndoTabService.getTabOpetarionTargetsByIds(remoteWindowId, remoteParentId, remoteBrowserId, remoteTabId);
@@ -1035,10 +1054,7 @@ var UndoTabService = {
 						return false;
 
 					t.browser.selectedTab = t.tab;
-					selectedTabId = undefined;
-
 					t.browser.moveTabTo(t.tab, selectedTabPosition);
-					selectedTabPosition = undefined;
 				},
 				onRedo : function(aInfo) {
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId);
@@ -1120,11 +1136,17 @@ var UndoTabService = {
 						if (selected)
 							our.browser.selectedTab = selected;
 
-						var tab = remote.browser.addTab('about:blank');
-						aInfo.manager.setElementId(tab, remoteTabId);
-						tab.linkedBrowser.stop();
-						tab.linkedBrowser.docShell;
-						remote.browser.swapBrowsersAndCloseOther(tab, our.tab);
+						if (remote.tab) { // reuse the tab restored by onUndo() of remoteTab()
+							remote.window.UndoTabService.makeTabBlank(remote.tab);
+						}
+						else {
+							remote.tab = remote.browser.addTab('about:blank');
+						}
+						aInfo.manager.setElementId(remote.tab, remoteTabId);
+						remote.tab.linkedBrowser.stop();
+						remote.tab.linkedBrowser.docShell;
+						remote.browser.swapBrowsersAndCloseOther(remote.tab, our.tab);
+
 						selected = aInfo.manager.getTargetById(remoteSelected, remote.browser.mTabContainer);
 						if (selected)
 							remote.browser.selectedTab = selected;
@@ -1147,7 +1169,7 @@ var UndoTabService = {
 
 					var willClose = remote.browser.mTabContainer.childNodes.length == 1;
 
-					aInfo.manager.makeTabUnrecoverable(our.tab); // ensure it is a blank tab
+					our.window.UndoTabService.makeTabBlank(our.tab); // ensure it is a blank tab
 					our.tab.linkedBrowser.stop();
 					our.tab.linkedBrowser.docShell;
 					remote.browser.swapBrowsersAndCloseOther(our.tab, remote.tab);

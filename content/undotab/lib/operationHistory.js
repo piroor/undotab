@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 40;
+	const currentRevision = 41;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -654,24 +654,6 @@
 				}
 			}, this);
 			return results;
-		},
-
-
-		makeTabUnrecoverable : function(aTab) 
-		{
-			// nsSessionStore.js doesn't save the tab to the undo cache
-			// if the tab is completely blank.
-			var b = aTab.linkedBrowser;
-			try {
-				b.stop();
-				if (b.sessionHistory)
-					b.sessionHistory.PurgeHistory(b.sessionHistory.count);
-			}
-			catch(e) {
-				dump(e+'\n');
-			}
-			if (b.contentWindow && b.contentWindow.location)
-				b.contentWindow.location.replace('about:blank');
 		},
 
 
