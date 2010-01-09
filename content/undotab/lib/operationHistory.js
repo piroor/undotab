@@ -254,13 +254,14 @@
 				if (!entries.length) continue;
 				log((history.index+1)+' '+entries[0].label, 1);
 				let oneProcessed = false;
-				entries.some(function(aEntry, aIndex) {
-					log('level '+(aIndex)+' '+aEntry.label, 2);
+				let max = entries.length;
+				Array.slice(entries).reverse().some(function(aEntry, aIndex) {
+					log('level '+(max-aIndex)+' '+aEntry.label, 2);
 					let f = this._getAvailableFunction(aEntry.onUndo, aEntry.onundo, aEntry.undo);
 					if (!f) return;
 					try {
 						let info = {
-								level   : aIndex,
+								level   : max-aIndex,
 								manager : this,
 								getContinuation : function() {
 									return this.manager._createContinuation(
@@ -320,14 +321,13 @@
 				if (!entries.length) continue;
 				log((history.index)+' '+entries[0].label, 1);
 				let oneProcessed = false;
-				let max = entries.length;
-				Array.slice(entries).reverse().some(function(aEntry, aIndex) {
+				entries.some(function(aEntry, aIndex) {
 					log('level '+(aIndex)+' '+aEntry.label, 2);
 					let f = this._getAvailableFunction(aEntry.onRedo, aEntry.onredo, aEntry.redo);
 					if (!f) return;
 					try {
 						let info = {
-								level   : max-aIndex,
+								level   : aIndex,
 								manager : this,
 								getContinuation : function() {
 									return this.manager._createContinuation(
