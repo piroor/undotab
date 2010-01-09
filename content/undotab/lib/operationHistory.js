@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 42;
+	const currentRevision = 43;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -207,22 +207,28 @@
 						}
 					})();
 
+				var onFinish = function() {
+						if (registered && canceled === false) {
+							history.removeEntry(entry);
+							log('  => doUndoableTask canceled : '+history.inOperation+
+								'\n'+history.toString(),
+								history.inOperationCount);
+						}
+						history.inOperation = false;
+						log('  => doUndoableTask finish / in operation : '+history.inOperation+
+							'\n'+history.toString(),
+							history.inOperationCount);
+					};
+
 				try {
 					selfInfo.done = !iterator.next();
-				}
-				catch(e) {
-				}
-				if (!selfInfo.done) {
-					var timer = window.setInterval(function() {
+					let timer = window.setInterval(function() {
 							try {
 								iterator.next();
 							}
 							catch(e) {
 								selfInfo.done = true;
-								history.inOperation = false;
-								log('  => doUndoableTask finish (delayed) / in operation : '+history.inOperation+
-									'\n'+history.toString(),
-									history.inOperationCount);
+								onFinish();
 								window.clearInterval(timer);
 							}
 							finally {
@@ -231,17 +237,8 @@
 							}
 						}, 10);
 				}
-				else {
-					if (registered && canceled === false) {
-						history.removeEntry(entry);
-						log('  => doUndoableTask canceled : '+history.inOperation+
-							'\n'+history.toString(),
-							history.inOperationCount);
-					}
-					history.inOperation = false;
-					log('  => doUndoableTask finish / in operation : '+history.inOperation+
-						'\n'+history.toString(),
-						history.inOperationCount);
+				catch(e) {
+					onFinish();
 				}
 			}
 
@@ -319,21 +316,21 @@
 					while (processed === false && history.canUndo);
 				})();
 
+			var onFinish = function() {
+					self._setUndoingState(options.key, false);
+					log('  => undo finish\n'+history.toString());
+				};
+
 			var selfInfo = { done : true };
 			try {
 				selfInfo.done = !iterator.next();
-			}
-			catch(e) {
-			}
-			if (!selfInfo.done) {
-				var timer = window.setInterval(function() {
+				let timer = window.setInterval(function() {
 						try {
 							iterator.next();
 						}
 						catch(e) {
 							selfInfo.done = true;
-							self._setUndoingState(options.key, false);
-							log('  => undo finish (delayed)\n'+history.toString());
+							onFinish();
 							window.clearInterval(timer);
 						}
 						finally {
@@ -342,9 +339,8 @@
 						}
 					}, 10);
 			}
-			else {
-				this._setUndoingState(options.key, false);
-				log('  => undo finish\n'+history.toString());
+			catch(e) {
+				onFinish();
 			}
 
 			if (error)
@@ -414,21 +410,21 @@
 					}
 				})();
 
+			var onFinish = function() {
+					self._setRedoingState(options.key, false);
+					log('  => redo finish\n'+history.toString());
+				};
+
 			var selfInfo = { done : true };
 			try {
 				selfInfo.done = !iterator.next();
-			}
-			catch(e) {
-			}
-			if (!selfInfo.done) {
-				var timer = window.setInterval(function() {
+				let timer = window.setInterval(function() {
 						try {
 							iterator.next();
 						}
 						catch(e) {
 							selfInfo.done = true;
-							self._setRedoingState(options.key, false);
-							log('  => redo finish (delayed)\n'+history.toString());
+							onFinish();
 							window.clearInterval(timer);
 						}
 						finally {
@@ -437,9 +433,8 @@
 						}
 					}, 10);
 			}
-			else {
-				this._setRedoingState(options.key, false);
-				log('  => redo finish\n'+history.toString());
+			catch(e) {
+				onFinish();
 			}
 
 			if (error)
@@ -484,11 +479,7 @@
 			var selfInfo = { done : true };
 			try {
 				selfInfo.done = !iterator.next();
-			}
-			catch(e) {
-			}
-			if (!selfInfo.done) {
-				var timer = window.setInterval(function() {
+				let timer = window.setInterval(function() {
 						try {
 							iterator.next();
 						}
@@ -497,6 +488,8 @@
 							window.clearInterval(timer);
 						}
 					}, 10);
+			}
+			catch(e) {
 			}
 
 			return selfInfo;
