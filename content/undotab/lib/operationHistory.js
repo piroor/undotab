@@ -597,7 +597,7 @@
 		{
 			var ids = [];
 			var otherArgs = [];
-			Array.slice(arguments).some(function(aArg) {
+			Array.slice(arguments).forEach(function(aArg) {
 				if (typeof aArg == 'string')
 					ids.push(aArg);
 				else

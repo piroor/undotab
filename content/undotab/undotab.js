@@ -244,7 +244,7 @@ var UndoTabService = {
 		}
 		else if (aTabIdOrIds.length) {
 			targets.tabs = targets.browser ?
-				manager.getTargetsByIds(aTabIdOrIds, targets.browser.mTabContainer) :
+				manager.getTargetsByIds.apply(manager, aTabIdOrIds.concat([targets.browser.mTabContainer])) :
 				[] ;
 			if (targets.tabs.length)
 				targets.tab = targets.tabs[0];
@@ -784,15 +784,14 @@ var UndoTabService = {
 				name   : 'undotab-loadTabs',
 				label  : this.bundle.getString('undo_loadTabs_label'),
 				onUndo : function(aInfo) {
-					if (!replace)
-						return false;
 
-					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId, currentTabId);
+					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId);
 					if (!t.browser)
 						return false;
 
 					selectedTabId = aInfo.manager.getId(t.browser.selectedTab);
-					UndoTabService.SessionStore.setTabState(t.tab, currentTabState);
+					if (replace)
+						UndoTabService.SessionStore.setTabState(t.tab, currentTabState);
 				},
 				onRedo : function(aInfo) {
 					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId, tabIds);
