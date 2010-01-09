@@ -172,64 +172,83 @@
 				registered = true;
 			}
 
-			var continuationInfo = new ContinuationInfo();
-			if (history.inOperation)
-				continuationInfo.done = false;
-
 			history.inOperation = true;
+
 			var error;
 			var canceled;
-			try {
-				if (options.task)
-					canceled = options.task.call(
-						this,
+			var selfInfo = { done : true };
+			if (options.task) {
+				var self = this;
+				var iterator = (function() {
+						var finished = true;
+						try {
+							canceled = options.task.call(
+								this,
+								{
+									level   : 0,
+									manager : self,
+									window  : window,
+									getContinuation : function() {
+										finished = false;
+										return function() {
+											finished = true;
+										};
+									}
+								}
+							);
+						}
+						catch(e) {
+							log(e, history.inOperationCount);
+							error = e;
+						}
+						while (!finished)
 						{
-							level   : 0,
-							manager : this,
-							window  : window,
-							getContinuation : function() {
-								return this.manager._createContinuation(
-										'undoable',
-										options,
-										continuationInfo
-									);
+							yield true;
+						}
+					})();
+
+				try {
+					selfInfo.done = !iterator.next();
+				}
+				catch(e) {
+				}
+				if (!selfInfo.done) {
+					var timer = window.setInterval(function() {
+							try {
+								iterator.next();
 							}
-						}
-					);
-			}
-			catch(e) {
-				log(e, history.inOperationCount);
-				error = e;
-			}
-
-			if (registered && canceled === false) {
-				history.removeEntry(entry);
-				log('  => doUndoableTask canceled : '+history.inOperation+
-					'\n'+history.toString(),
-					history.inOperationCount);
-			}
-
-			if (!continuationInfo.shouldWait) {
-				history.inOperation = false;
-				log('  => doUndoableTask finish / in operation : '+history.inOperation+
-					'\n'+history.toString(),
-					history.inOperationCount);
-				// wait for all child processes
-				if (history.inOperation)
-					continuationInfo = {
-						get done() {
-							return !history.inOperation;
-						}
-					};
-			}
-			else {
-				continuationInfo.allowed = true;
+							catch(e) {
+								selfInfo.done = true;
+								history.inOperation = false;
+								log('  => doUndoableTask finish (delayed) / in operation : '+history.inOperation+
+									'\n'+history.toString(),
+									history.inOperationCount);
+								window.clearInterval(timer);
+							}
+							finally {
+								if (error)
+									throw error;
+							}
+						}, 10);
+				}
+				else {
+					if (registered && canceled === false) {
+						history.removeEntry(entry);
+						log('  => doUndoableTask canceled : '+history.inOperation+
+							'\n'+history.toString(),
+							history.inOperationCount);
+					}
+					history.inOperation = false;
+					log('  => doUndoableTask finish / in operation : '+history.inOperation+
+						'\n'+history.toString(),
+						history.inOperationCount);
+				}
 			}
 
 			if (error)
 				throw error;
 
-			return continuationInfo;
+			return selfInfo;
 		},
 
 		getHistory : function()
