@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 35;
+	const currentRevision = 36;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -106,6 +106,10 @@
 					.getService(Ci.fuelIApplication);
 	const Prefs = Cc['@mozilla.org/preferences;1']
 					.getService(Ci.nsIPrefBranch);
+	const WindowMediator = Cc['@mozilla.org/appshell/window-mediator;1']
+					.getService(Ci.nsIWindowMediator);
+	const SessionStore = Cc['@mozilla.org/browser/sessionstore;1']
+					.getService(Ci.nsISessionStore);
 
 	var DEBUG = false;
 	try {
@@ -134,7 +138,8 @@
 	window['piro.sakura.ne.jp'].operationHistory = {
 		revision : currentRevision,
 
-		WINDOW_ID : 'ui-operation-global-history-window-id',
+		WINDOW_ID : 'ui-operation-history-window-id',
+		ELEMENT_ID : 'ui-operation-history-element-id',
 
 		addEntry : function()
 		{
@@ -143,7 +148,7 @@
 
 		doUndoableTask : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			var history = options.history;
 			log('doUndoableTask start ('+options.name+' for '+options.windowId+')', history.inOperationCount);
 
@@ -213,13 +218,13 @@
 
 		getHistory : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			return new UIHistoryProxy(options.history);
 		},
 
 		undo : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			var history = options.history;
 			var undoing = this._getUndoingState(options.key);
 			log('undo start ('+history.index+' / '+history.entries.length+', '+options.name+' for '+options.windowId+', '+undoing+')');
@@ -287,7 +292,7 @@
 
 		redo : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			var history = options.history;
 			var max = history.entries.length;
 			var redoing = this._getRedoingState(options.key);
@@ -356,7 +361,7 @@
 
 		goToIndex : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			var history = options.history;
 			var index = Math.max(0, Math.min(history.entries.length-1, options.index));
 			var current = history.index;
@@ -401,16 +406,27 @@
 			return selfInfo;
 		},
 
+		isUndoing : function()
+		{
+			var options = this._getHistoryOptionsFromArguments(arguments);
+			return this._getUndoingState(options.key);
+		},
+		isRedoing : function()
+		{
+			var options = this._getHistoryOptionsFromArguments(arguments);
+			return this._getRedoingState(options.key);
+		},
+
 		syncWindowHistoryFocus : function(aOptions)
 		{
 			if (!aOptions.currentEntry)
-				throw 'currentEntry must be specified!';
+				throw new Error('currentEntry must be specified!');
 			if (!aOptions.entries)
-				throw 'entries must be specified!';
+				throw new Error('entries must be specified!');
 			if (!aOptions.windows)
-				throw 'windows must be specified!';
+				throw new Error('windows must be specified!');
 			if (aOptions.entries.length != aOptions.windows.length)
-				throw 'numbers of entries and windows must be same!';
+				throw new Error('numbers of entries and windows must be same!');
 
 			var name = aOptions.name || 'window';
 
@@ -431,9 +447,10 @@
 
 		clear : function()
 		{
-			var options = this._getOptionsFromArguments(arguments);
+			var options = this._getHistoryOptionsFromArguments(arguments);
 			return options.history.clear();
 		},
+
 
 		getWindowId : function(aWindow, aDefaultId)
 		{
@@ -441,10 +458,17 @@
 			var id = root.getAttribute(this.WINDOW_ID) || aDefaultId;
 			try {
 				if (!id)
-					id = this.SessionStore.getWindowValue(aWindow, this.WINDOW_ID);
+					id = SessionStore.getWindowValue(aWindow, this.WINDOW_ID);
 			}
 			catch(e) {
 			}
+			return this.setWindowId(aWindow, id);
+		},
+
+		setWindowId : function(aWindow, aDefaultId)
+		{
+			var id = aDefaultId;
+			var root = aWindow.document.documentElement;
 
 			// When the ID has been already used by other window,
 			// we have to create new ID for this window.
@@ -457,7 +481,7 @@
 			if (root.getAttribute(this.WINDOW_ID) != id) {
 				root.setAttribute(this.WINDOW_ID, id);
 				try {
-					this.SessionStore.setWindowValue(aWindow, this.WINDOW_ID, id);
+					SessionStore.setWindowValue(aWindow, this.WINDOW_ID, id);
 				}
 				catch(e) {
 				}
@@ -467,7 +491,7 @@
 
 		getWindowById : function(aId)
 		{
-			var targets = this.WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
 			while (targets.hasMoreElements())
 			{
 				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
@@ -477,15 +501,161 @@
 			return null;
 		},
 
-		isUndoing : function()
+		getElementId : function(aElement, aDefaultId)
 		{
-			var options = this._getOptionsFromArguments(arguments);
-			return this._getUndoingState(options.key);
+			var id = aElement.getAttribute(this.ELEMENT_ID) || aDefaultId;
+			try {
+				if (!id && aElement.localName == 'tab')
+					id = SessionStore.getTabValue(aElement, this.ELEMENT_ID);
+			}
+			catch(e) {
+			}
+			return this.setElementId(aElement, id);
 		},
-		isRedoing : function()
+
+		setElementId : function(aElement, aDefaultId)
 		{
-			var options = this._getOptionsFromArguments(arguments);
-			return this._getRedoingState(options.key);
+			var id = aDefaultId;
+
+			// When the ID has been already used by other elements,
+			// we have to create new ID for this element.
+			var elements = this._getElementsById(id, aElement.parentNode || aElement.ownerDocument);
+			var forceNewId = elements.length && (elements.length > 1 || elements[0] != aElement);
+
+			if (!id || forceNewId)
+				id = 'element-'+Date.now()+parseInt(Math.random() * 65000);
+
+			if (aElement.getAttribute(this.ELEMENT_ID) != id) {
+				aElement.setAttribute(this.ELEMENT_ID, id);
+				try {
+					if (aElement.localName == 'tab')
+						SessionStore.setTabValue(aElement, this.ELEMENT_ID, id);
+				}
+				catch(e) {
+				}
+			}
+			return id;
+		},
+
+		getWindowById : function(aId)
+		{
+			if (!aId)
+				throw new Error('window id must be specified.');
+			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			while (targets.hasMoreElements())
+			{
+				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
+				if (aId == this.getWindowId(target))
+					return target;
+			}
+			return null;
+		},
+
+		getElementById : function()
+		{
+			var options = this._getElementOptionsFromArguments(arguments);
+			if (!options.id)
+				throw new Error('element id must be specified.');
+			return this._evaluateXPath(
+					'descendant::*[@'+this.ELEMENT_ID+'="'+options.id+'"][1]',
+					options.parent,
+					Ci.nsIDOMXPathResult.FIRST_ORDERED_NODE_TYPE
+				).singleNodeValue;
+		},
+
+		getId : function(aTarget, aDefaultId)
+		{
+			if (aTarget instanceof Ci.nsIDOMDocument)
+				return this.getWindowId(aTarget, aDefaultId);
+			if (aTarget instanceof Ci.nsIDOMElement)
+				return this.getElementId(aTarget, aDefaultId);
+			throw new Error(aTarget+' is an unknown type item.');
+		},
+
+		getBindingParentId : function(aNode, aDefaultId)
+		{
+			var parent = aNode.ownerDocument.getBindingParent(aNode);
+			return parent ? this.getId(parent, aDefaultId) : null ;
+		},
+
+		getTargetById : function()
+		{
+			var id;
+			Array.slice(arguments).some(function(aArg) {
+				if (typeof aArg == 'string')
+					return id = aArg;
+				return false;
+			});
+			if (!id)
+				throw new Error('target id must be specified.');
+
+			if (id.indexOf('window-') == 0)
+				return this.getWindowById.apply(this, arguments);
+			if (id.indexOf('element-') == 0)
+				return this.getElementById.apply(this, arguments);
+
+			throw new Error(id+' is an unknown type id.');
+		},
+
+		getTargetsByIds : function()
+		{
+			var ids = [];
+			var otherArgs = [];
+			Array.slice(arguments).some(function(aArg) {
+				if (typeof aArg == 'string')
+					ids.push(aArg);
+				else
+					otherArgs.push(aArg);
+			});
+			if (!ids.length)
+				throw new Error('target id must be specified.');
+
+			return ids.map(function(aId) {
+					return this.getTargetById.apply(this, [aId].concat(otherArgs));
+				}, this);
+		},
+
+		getRelatedTargetsByIds : function(aIds, aRootParent) 
+		{
+			var results = [];
+			var lastParent = aRootParent;
+			aIds.some(function(aId) {
+				try {
+					var lastResult;
+					if (typeof aId != 'string') {
+						lastReuslt = this.getTargetsByIds(aId, lastParent);
+						lastParent = lastParent[0];
+					}
+					else {
+						lastReuslt = this.getTargetById(aId, lastParent);
+						lastParent = lastReuslt;
+					}
+					results.push(lastReuslt);
+					return false;
+				}
+				catch(e) {
+					return e;
+				}
+			}, this);
+			return results;
+		},
+
+
+		makeTabUnrecoverable : function(aTab) 
+		{
+			// nsSessionStore.js doesn't save the tab to the undo cache
+			// if the tab is completely blank.
+			var b = aTab.linkedBrowser;
+			try {
+				b.stop();
+				if (b.sessionHistory)
+					b.sessionHistory.PurgeHistory(b.sessionHistory.count);
+			}
+			catch(e) {
+				dump(e+'\n');
+			}
+			if (b.contentWindow && b.contentWindow.location)
+				b.contentWindow.location.replace('about:blank');
 		},
 
 
@@ -498,7 +668,7 @@
 		init : function()
 		{
 			// inherit history table from existing window
-			var targets = this.WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
 			while (targets.hasMoreElements())
 			{
 				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
@@ -566,7 +736,31 @@
 			d.dispatchEvent(event);
 		},
 
-		_getOptionsFromArguments : function(aArguments)
+		_evaluateXPath : function(aExpression, aContext, aType) 
+		{
+			try {
+				var doc = aContext.ownerDocument || aContext;
+				var xpathResult = doc.evaluate(
+						aExpression,
+						aContext,
+						null,
+						aType,
+						null
+					);
+			}
+			catch(e) {
+				return {
+					singleNodeValue : null,
+					snapshotLength  : 0,
+					snapshotItem    : function() {
+						return null
+					}
+				};
+			}
+			return xpathResult;
+		},
+
+		_getHistoryOptionsFromArguments : function(aArguments)
 		{
 			var w     = null,
 				name  = '',
@@ -602,6 +796,39 @@
 				history  : history,
 				task     : task,
 				index    : index
+			};
+		},
+
+		_getElementOptionsFromArguments : function(aArguments)
+		{
+			var id       = '',
+				document = null,
+				parent   = null;
+			Array.slice(aArguments).forEach(function(aArg) {
+				if (typeof aArg == 'string')
+					id = aArg;
+				else if (aArg instanceof Ci.nsIDOMDocument)
+					document = aArg;
+				else if (aArg instanceof Ci.nsIDOMWindow)
+					document = aArg.document;
+				else if (aArg instanceof Ci.nsIDOMNode)
+					parent = aArg;
+			});
+
+			if (!document) {
+				if (parent)
+					document = parent.ownerDocument;
+				else
+					document = window.document;
+			}
+
+			if (!parent)
+				parent = document;
+
+			return {
+				id       : id,
+				parent   : parent,
+				document : document
 			};
 		},
 
@@ -679,7 +906,7 @@
 					break;
 
 				default:
-					throw 'unknown continuation type: '+aType;
+					throw new Error('unknown continuation type: '+aType);
 			}
 			aOptions = null;
 			return continuation;
@@ -719,7 +946,7 @@
 
 		_getWindowsById : function(aId)
 		{
-			var targets = this.WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
 			var windows = [];
 			while (targets.hasMoreElements())
 			{
@@ -727,7 +954,7 @@
 				let id = target.document.documentElement.getAttribute(this.WINDOW_ID);
 				try {
 					if (!id)
-						id = this.SessionStore.getWindowValue(target, this.WINDOW_ID)
+						id = SessionStore.getWindowValue(target, this.WINDOW_ID)
 				}
 				catch(e) {
 				}
@@ -735,6 +962,21 @@
 					windows.push(target);
 			}
 			return windows;
+		},
+
+		_getElementsById : function(aId, aParent)
+		{
+			var result = this._evaluateXPath(
+					'descendant::*[@'+this.ELEMENT_ID+'="'+aId+'"][1]',
+					aParent,
+					Ci.nsIDOMXPathResult.ORDERED_NODE_SNAPSHOT_TYPE
+				);
+			var elements = [];
+			for (let i = 0, maxi = result.snapshotLength; i < maxi; i++)
+			{
+				elements.push(result.snapshotItem(i));
+			}
+			return elements;
 		},
 
 		_getUndoingState : function(aKey)
@@ -766,24 +1008,6 @@
 			else if (aKey in this._db.redoing)
 				delete this._db.redoing[aKey];
 		},
-
-		get WindowMediator() {
-			if (!this._WindowMediator) {
-				this._WindowMediator = Cc['@mozilla.org/appshell/window-mediator;1']
-										.getService(Ci.nsIWindowMediator);
-			}
-			return this._WindowMediator;
-		},
-		_WindowMediator : null,
-
-		get SessionStore() { 
-			if (!this._SessionStore) {
-				this._SessionStore = Cc['@mozilla.org/browser/sessionstore;1']
-										.getService(Ci.nsISessionStore);
-			}
-			return this._SessionStore;
-		},
-		_SessionStore : null,
 
 		handleEvent : function(aEvent)
 		{
