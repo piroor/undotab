@@ -497,7 +497,7 @@ var UndoTabService = {
 			<![CDATA[
 					},
 					this,
-					arguments
+					aTab
 				);
 			$1]]>
 		));
@@ -1001,37 +1001,29 @@ var UndoTabService = {
 			}
 		);
 
+		aTask       = undefined;
+		aTabBrowser = undefined;
+		aTab        = undefined;
+
 		return newTab;
 	},
  
-	onRemoveAllTabsBut : function UT_onRemoveAllTabsBut(aTask, aTabBrowser, aArguments) 
+	onRemoveAllTabsBut : function UT_onRemoveAllTabsBut(aTask, aTabBrowser, aStayedTab) 
 	{
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		var tab = aArguments[0];
-		var position = tab ? tab._tPos : -1 ;
-		var positions = [];
-		var selected = -1;
-		var states = this.getTabsArray(aTabBrowser)
-						.filter(function(aTab) {
-							return aTab != tab;
-						})
-						.map(function(aTab, aIndex) {
-							if (aTab.selected)
-								selected = aIndex;
-							positions.push(aTab._tPos);
-							return this.SessionStore.getTabState(aTab);
-						}, this);
+		var parentId      = this.getBindingParentId(aTabBrowser);
+		var browserId     = this.getId(aTabBrowser);
+		var selectedTabId = this.getId(aTabBrowser.selectedTab);
 
-		tab = null;
-		var canceled = false;
 		var retVal;
 		window['piro.sakura.ne.jp'].operationHistory.doUndoableTask(
-			function() {
+			function(aInfo) {
 				var count = UndoTabService.getTabs(aTabBrowser).snapshotLength;
 				retVal = aTask.call(aTabBrowser);
-				canceled = UndoTabService.getTabs(aTabBrowser).snapshotLength == count;
+
+				return UndoTabService.getTabs(aTabBrowser).snapshotLength != count;
 			},
 
 			'TabbarOperations',
@@ -1040,39 +1032,26 @@ var UndoTabService = {
 				name   : 'undotab-removeAllTabsBut',
 				label  : this.bundle.getString('undo_removeAllTabsBut_label'),
 				onUndo : function(aInfo) {
-					if (aInfo.processed) return;
-					if (canceled) return false;
+					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId, selectedTabId);
+					if (!t.browser || !t.tab)
+						return false;
 
-					window['piro.sakura.ne.jp'].stopRendering.stop();
-					states.forEach(function(aState, aIndex) {
-						var tab = aTabBrowser.addTab();
-						UndoTabService.SessionStore.setTabState(tab, aState);
-						aTabBrowser.moveTabTo(tab, positions[aIndex]);
-						positions[aIndex] = tab._tPos;
-						if (aIndex == selected)
-							aTabBrowser.selectedTab = tab;
-					});
-					window['piro.sakura.ne.jp'].stopRendering.start();
+					t.browser.selectedTab = t.tab;
+					selectedTabId = null;
 				},
 				onRedo : function(aInfo) {
-					if (aInfo.processed) return;
-					if (canceled) return false;
+					var t = UndoTabService.getTabOpetarionTargetsByIds(null, parentId, browserId);
+					if (!t.browser)
+						return false;
 
-					var tab = UndoTabService.getTabAt(position, aTabBrowser);
-					if (!tab) return false;
-
-					window['piro.sakura.ne.jp'].stopRendering.stop();
-					UndoTabService.getTabsArray(aTabBrowser)
-						.reverse()
-						.forEach(function(aTab) {
-							if (aTab == tab) return;
-							aInfo.manager.makeTabUnrecoverable(aTab);
-							aTabBrowser.removeTab(aTab);
-						});
-					window['piro.sakura.ne.jp'].stopRendering.start();
+					selectedTabId = aInfo.manager.getId(t.browser.selectedTab);
 				}
 			}
 		);
+
+		aTask       = undefined;
+		aTabBrowser = undefined;
+		aStayedTab  = undefined;
 
 		return retVal;
 	},
