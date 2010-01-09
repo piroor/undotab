@@ -1193,9 +1193,9 @@ var UndoTabService = {
 
 		this.manager.syncWindowHistoryFocus({
 			currentEntry : entry,
-			name    : 'TabbarOperations',
-			entries : [data.ourEntry, data.remoteEntry],
-			windows : [our.window, remote.window]
+			name         : 'TabbarOperations',
+			entries      : [data.ourEntry, data.remoteEntry],
+			windows      : [our.window, remote.window]
 		});
 
 		var selected = this.manager.getTargetById(data.ourSelected, our.browser.mTabContainer);
@@ -1232,9 +1232,9 @@ var UndoTabService = {
 
 		this.manager.syncWindowHistoryFocus({
 			currentEntry : entry,
-			name    : 'TabbarOperations',
-			entries : [data.ourEntry, data.remoteEntry],
-			windows : [our.window, remote.window]
+			name         : 'TabbarOperations',
+			entries      : [data.ourEntry, data.remoteEntry],
+			windows      : [our.window, remote.window]
 		});
 
 		var willClose = remote.browser.mTabContainer.childNodes.length == 1;
@@ -1386,9 +1386,9 @@ var UndoTabService = {
 
 		this.manager.syncWindowHistoryFocus({
 			currentEntry : entry,
-			name    : 'TabbarOperations',
-			entries : [data.sourceEntry, data.newEntry],
-			windows : [source.window, remoteWindow]
+			name         : 'TabbarOperations',
+			entries      : [data.sourceEntry, data.newEntry],
+			windows      : [source.window, remoteWindow]
 		});
 
 		var restoredTab = source.window.UndoTabService.importTabTo(remoteWindow.gBrowser.selectedTab, source.browser);
@@ -1460,33 +1460,28 @@ var UndoTabService = {
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-					if (!tabbrowser || !tabbrowser.parentNode) {
-						tabbrowser = null;
-						return aEvent.preventDefault();
-					}
+		var t = this.getTabOpetarionTargetsByIds(null, data.parentId, data.browserId, data.tabId);
+		if (!t.browser || !t.tab)
+			return aEvent.preventDefault();
 
-					var tab = UndoTabService.getTabAt(position, tabbrowser);
-					if (!tab) return aEvent.preventDefault();
-
-					state = UndoTabService.getTabState(tab);
-					tabbrowser.removeTab(tab);
+		data.state = this.getTabState(t.tab);
+		t.browser.removeTab(tab);
 	},
 	onRedoUndoCloseTab : function UT_onRedoUndoCloseTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-					if (!tabbrowser || !tabbrowser.parentNode) {
-						tabbrowser = null;
-						return aEvent.preventDefault();
-					}
+		var t = this.getTabOpetarionTargetsByIds(null, data.parentId, data.browserId, data.tabId);
+		if (!t.browser)
+			return aEvent.preventDefault();
 
-					var tab = tabbrowser.addTab();
-					UndoTabService.setTabState(tab, state);
-					tabbrowser.moveTabTo(tab, position);
-					position = tab._tPos;
-					if (selected)
-						tabbrowser.selectedTab = tab;
+		var tab = t.browser.addTab('about:blank');
+		this.setTabState(tab, state);
+		t.browser.moveTabTo(tab, data.position);
+		data.position = tab._tPos;
+		if (data.selected)
+			t.browser.selectedTab = tab;
 	},
   
 /* Prefs */ 
