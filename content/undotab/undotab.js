@@ -1185,7 +1185,7 @@ var UndoTabService = {
 		if (!remote.window || remote.window.closed) {
 			// The remote window was closed automatically.
 			// So, we have to reopen the window.
-			var continuation = aEvent.getContinuation();
+			aEvent.wait();
 			var remoteWindow = our.browser.replaceTabWithWindow(our.tab);
 			remoteWindow.addEventListener('load', function() {
 				remoteWindow.removeEventListener('load', arguments.callee, false);
@@ -1197,10 +1197,10 @@ var UndoTabService = {
 					aEvent.manager.setBindingParentId(b, data.remote.parent);
 					remoteWindow.resizeTo(data.remote.width, data.remote.height);
 					remoteWindow.moveTo(data.remote.x, data.remote.y);
-					continuation();
+					aEvent.continue();
 					// We have to register new entry with delay, because
 					// the state of the manager is still "undoing" when
-					// just after continuation() is called.
+					// just after aEvent.continue() is called.
 					remoteWindow.setTimeout(function() {
 						aEvent.manager.addEntry('TabbarOperations', remoteWindow, data.remote.entry);
 						aEvent.manager.fakeUndo('TabbarOperations', remoteWindow, data.remote.entry);
@@ -1442,7 +1442,7 @@ var UndoTabService = {
 				if (!remoteWindow)
 					return false;
 
-				var continuation = aInfo.getContinuation();
+				aInfo.wait();
 				remoteWindow.addEventListener('load', function() {
 					remoteWindow.removeEventListener('load', arguments.callee, false);
 					data.remote.window = aInfo.manager.getWindowId(remoteWindow);
@@ -1452,7 +1452,7 @@ var UndoTabService = {
 							remoteWindow,
 							data.remote.entry
 						);
-						continuation();
+						aInfo.continue();
 					}, 10);
 				}, false);
 			},
@@ -1509,7 +1509,7 @@ var UndoTabService = {
 		if (!our.window || !our.browser || !our.tab)
 			return aEvent.preventDefault();
 
-		var continuation = aEvent.getContinuation();
+		aEvent.wait();
 		var remoteWindow = our.browser.replaceTabWithWindow(our.tab);
 		remoteWindow.addEventListener('load', function() {
 			remoteWindow.removeEventListener('load', arguments.callee, false);
@@ -1517,10 +1517,10 @@ var UndoTabService = {
 			remoteWindow.setTimeout(function() {
 				remoteWindow.resizeTo(data.width, data.height);
 				remoteWindow.moveTo(data.x, data.y);
-				continuation();
+				aEvent.continue();
 				// We have to register new entry with delay, because
 				// the state of the manager is still "redoing" when
-				// just after continuation() is called.
+				// just after aEvent.continue() is called.
 				remoteWindow.setTimeout(function() {
 					aEvent.manager.addEntry('TabbarOperations', remoteWindow, data.remote.entry);
 				}, 250);
