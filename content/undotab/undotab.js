@@ -700,7 +700,7 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				aTask.call(aTabBrowser);
 			},
@@ -782,7 +782,7 @@ var UndoTabService = {
 				replace         : false
 			};
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				var beforeTabs = UndoTabService.getTabsArray(aTabBrowser);
 				aTask.call(aTabBrowser);
@@ -844,7 +844,7 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function() {
 				aTask.call(aTabBrowser);
 			},
@@ -915,7 +915,7 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function() {
 				aTask.call(aTabBrowser);
 			},
@@ -985,7 +985,7 @@ var UndoTabService = {
 
 		var newTab;
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				newTab = aTask.call(aTabBrowser);
 				if (newTab) {
@@ -1045,7 +1045,7 @@ var UndoTabService = {
 			return aTask.call(aTabBrowser);
 
 		var retVal;
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				var count = UndoTabService.getTabs(aTabBrowser).snapshotLength;
 				retVal = aTask.call(aTabBrowser);
@@ -1122,7 +1122,11 @@ var UndoTabService = {
 					browser : this.manager.getId(remoteBrowser),
 					parent  : this.manager.getBindingParentId(remoteBrowser),
 					window  : this.manager.getId(remoteWindow),
-					selected  : this.manager.getId(remoteBrowser.selectedTab)
+					selected  : this.manager.getId(remoteBrowser.selectedTab),
+					width  : remoteWindow.outerWidth,
+					height : remoteWindow.outerHeight,
+					x      : remoteWindow.screenX,
+					y      : remoteWindow.screenY
 				}
 			};
 
@@ -1139,7 +1143,7 @@ var UndoTabService = {
 
 		var retVal;
 		if (remoteWindow == ourWindow) {
-			this.manager.doUndoableTask(
+			this.manager.doOperation(
 				function(aInfo) {
 					retVal = aTask.call(aTabBrowser);
 				},
@@ -1149,10 +1153,10 @@ var UndoTabService = {
 			);
 		}
 		else {
-			this.manager.doUndoableTask(
+			this.manager.doOperation(
 				function(aInfo) {
 					// We have to do this operation as an undoable task in the remote window!
-					aInfo.manager.doUndoableTask(
+					aInfo.manager.doOperation(
 						function(aInfo) {
 							retVal = aTask.call(aTabBrowser);
 						},
@@ -1191,12 +1195,20 @@ var UndoTabService = {
 					aEvent.manager.setElementId(b.selectedTab, data.remote.tab);
 					aEvent.manager.setElementId(b, data.remote.browser);
 					aEvent.manager.setBindingParentId(b, data.remote.parent);
+					remoteWindow.resizeTo(data.remote.width, data.remote.height);
+					remoteWindow.moveTo(data.remote.x, data.remote.y);
 					continuation();
 					// We have to register new entry with delay, because
 					// the state of the manager is still "undoing" when
 					// just after continuation() is called.
 					remoteWindow.setTimeout(function() {
 						aEvent.manager.addEntry('TabbarOperations', remoteWindow, data.remote.entry);
+						aEvent.manager.syncWindowHistoryFocus({
+							currentEntry : entry,
+							name         : 'TabbarOperations',
+							entries      : [data.our.entry, data.remote.entry],
+							windows      : [our.window, remoteWindow]
+						});
 					}, 50);
 				}, 10);
 			}, false);
@@ -1250,6 +1262,10 @@ var UndoTabService = {
 		});
 
 		var willClose = remote.browser.mTabContainer.childNodes.length == 1;
+		data.remote.width  = remote.window.outerWidth;
+		data.remote.height = remote.window.outerHeight;
+		data.remote.x      = remote.window.screenX;
+		data.remote.y      = remote.window.screenY;
 
 		if (our.tab) {
 			this.makeTabBlank(our.tab);
@@ -1302,10 +1318,10 @@ var UndoTabService = {
 			data  : data
 		};
 
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				// We have to do this operation as an undoable task in the remote window!
-				aInfo.manager.doUndoableTask(
+				aInfo.manager.doOperation(
 					function(aInfo) {
 						aTask.call(aTabBrowser);
 						data.our.newSelected = aInfo.manager.getId(aTabBrowser.selectedTab);
@@ -1381,7 +1397,7 @@ var UndoTabService = {
 			return aTask.call(aTabBrowser);
 
 		var position = -1;
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				aTask.call(aTabBrowser);
 			},
@@ -1429,7 +1445,7 @@ var UndoTabService = {
 		};
 
 		var newWindow;
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				newWindow = aTask.call(aTabBrowser);
 				if (!newWindow)
@@ -1469,6 +1485,11 @@ var UndoTabService = {
 		if (!remote.window || remote.window.closed)
 			return aEvent.preventDefault();
 
+		data.width  = remote.window.outerWidth;
+		data.height = remote.window.outerHeight;
+		data.x      = remote.window.screenX;
+		data.y      = remote.window.screenY;
+
 		this.manager.syncWindowHistoryFocus({
 			currentEntry : entry,
 			name         : 'TabbarOperations',
@@ -1505,12 +1526,20 @@ var UndoTabService = {
 			newWindow.removeEventListener('load', arguments.callee, false);
 			data.new.window = aEvent.manager.setWindowId(newWindow, data.new.window);
 			newWindow.setTimeout(function() {
+				remote.window.resizeTo(data.width, data.height);
+				remote.window.moveTo(data.x, data.y);
 				continuation();
 				// We have to register new entry with delay, because
 				// the state of the manager is still "redoing" when
 				// just after continuation() is called.
 				newWindow.setTimeout(function() {
 					aEvent.manager.addEntry('TabbarOperations', newWindow, data.new.entry);
+					aEvent.manager.syncWindowHistoryFocus({
+						currentEntry : entry,
+						name         : 'TabbarOperations',
+						entries      : [data.source.entry, data.new.entry],
+						windows      : [source.window, newWindow]
+					});
 				}, 50);
 			}, 10);
 		}, false);
@@ -1522,7 +1551,7 @@ var UndoTabService = {
 			return aTask.call(aThis);
 
 		var tab;
-		this.manager.doUndoableTask(
+		this.manager.doOperation(
 			function(aInfo) {
 				tab = aTask.apply(aThis, aArguments);
 				if (!tab) return false;

@@ -5,7 +5,7 @@
    var OH = window['piro.sakura.ne.jp'].operationHistory;
 
    // window specific history
-   OH.doUndoableTask(
+   OH.doOperation(
      // the task which is undo-able (optional)
      function() {
        MyService.myProp = newValue;
@@ -28,7 +28,7 @@
    OH.redo('MyAddonFeature', window);
 
    // global history (not associated to window)
-   OH.doUndoableTask(
+   OH.doOperation(
      function() { ... }, // task
      'MyAddonFeature',
      { ... }
@@ -36,17 +36,17 @@
    OH.undo('MyAddonFeature');
 
    // anonymous, window specific
-   OH.doUndoableTask(function() { ... }, { ... }, window);
+   OH.doOperation(function() { ... }, { ... }, window);
    OH.undo(window);
 
    // anonymous, global
-   OH.doUndoableTask(function() { ... }, { ... });
+   OH.doOperation(function() { ... }, { ... });
    OH.undo();
 
    // When you want to use "window" object in the global history,
    // you should use the ID string instead of the "window" object
    // to reduce memory leak. For example...
-   OH.doUndoableTask(
+   OH.doOperation(
      function() {
        targetWindow.MyAddonService.myProp = newValue;
      },
@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 47;
+	const currentRevision = 48;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -143,15 +143,21 @@
 
 		addEntry : function()
 		{
-			this.doUndoableTask.apply(this, arguments);
+			this.doOperation.apply(this, arguments);
 		},
 
+		// old name, for backward compatibility
 		doUndoableTask : function()
+		{
+			this.doOperation.apply(this, arguments);
+		},
+
+		doOperation : function()
 		{
 			var options = this._getHistoryOptionsFromArguments(arguments);
 			var history = options.history;
 			var entry = options.entry;
-			log('doUndoableTask start '+options.name+' ('+options.windowId+')'+
+			log('doOperation start '+options.name+' ('+options.windowId+')'+
 				'\n  '+entry.label,
 				history.inOperationCount);
 
@@ -202,13 +208,13 @@
 				var onFinish = function() {
 						if (registered && canceled === false) {
 							history.removeEntry(entry);
-							log('  => doUndoableTask canceled : '+history.inOperation+'\n'+
+							log('  => doOperation canceled : '+history.inOperation+'\n'+
 								((history.inOperationCount ? entry.label : history.toString())
 									.replace(/^/gm, '    ')),
 								history.inOperationCount);
 						}
 						history.inOperation = false;
-						log('  => doUndoableTask done / '+history.inOperation+'\n'+
+						log('  => doOperation done / '+history.inOperation+'\n'+
 							((history.inOperationCount ? entry.label : history.toString())
 								.replace(/^/gm, '    ')),
 							history.inOperationCount);
@@ -531,15 +537,37 @@
 
 			log('syncWindowHistoryFocus for '+name+' ('+aOptions.currentEntry.label+')', 4);
 
-			aOptions.entries.forEach(function(aEntry, aIndex) {
-				var history = this.getHistory(name, aOptions.windows[aIndex]);
-				var currentEntries = history.currentEntries;
-				if (currentEntries.indexOf(aOptions.currentEntry) > -1) {
-					return;
+			var baseIndex   = -1;
+			var histories   = [];
+			var indexes     = [];
+			var prevEntries = [];
+			var nextEntries = [];
+			aOptions.windows.forEach(function(aWindow, aIndex) {
+				var history = this.getHistory(name, aWindow)._original;
+				histories.push(history);
+				var index = history.index;
+				indexes.push(index);
+				prevEntries.push(history.getEntriesAt(index-1));
+				nextEntries.push(history.getEntriesAt(index+1));
+				if (baseIndex < 0 &&
+					history.getEntriesAt(index).indexOf(aOptions.currentEntry) > -1) {
+					baseIndex = aIndex;
 				}
-				if (currentEntries.indexOf(aEntry) > -1) {
-					log(name+' is synced for '+aIndex+' ('+aEntry.label+')', 5);
-					history.index--;
+			}, this);
+			aOptions.entries.forEach(function(aEntry, aIndex) {
+				if (aIndex == baseIndex)
+					return;
+				var history = histories[aIndex];
+log('check for:'+
+	history.toString(), 5);
+				var index   = indexes[aIndex];
+				if (prevEntries[aIndex].indexOf(aEntry) > -1) {
+					history.index -= 2;
+					log(' => synced as undo\n'+history.toString(), 5);
+				}
+				else if (nextEntries[aIndex].indexOf(aEntry) > -1) {
+					history.index++;
+					log(' => synced as redo\n'+history.toString(), 5);
 				}
 			}, this);
 		},
@@ -1092,6 +1120,16 @@
 			return aValue;
 		},
 
+		get index()
+		{
+			return this._index;
+		},
+		set index(aValue)
+		{
+			this._index = Math.max(-1, Math.min(this.entries.length, aValue));
+			return this._index;
+		},
+
 		get safeIndex()
 		{
 			return Math.max(0, Math.min(this.entries.length-1, this.index));
@@ -1116,7 +1154,7 @@
 			log('UIHistory::clear '+this.key);
 			this.entries  = [];
 			this.metaData = [];
-			this.index    = -1;
+			this._index   = -1;
 			this.inOperationCount = 0;
 		},
 
@@ -1157,7 +1195,7 @@
 		{
 			for (let i = this.safeIndex; i > -1; i--)
 			{
-				let index = this._getEntriesAt(i).indexOf(aEntry);
+				let index = this.getEntriesAt(i).indexOf(aEntry);
 				if (index < 0) continue;
 
 				if (index == 0) {
@@ -1199,7 +1237,7 @@
 			return this.metaData[this.metaData.length-1];
 		},
 
-		_getEntriesAt : function(aIndex)
+		getEntriesAt : function(aIndex)
 		{
 			let entry = this.entries[aIndex];
 			if (!entry) return [];
@@ -1208,11 +1246,11 @@
 		},
 		get currentEntries()
 		{
-			return this._getEntriesAt(this.index);
+			return this.getEntriesAt(this.index);
 		},
 		get lastEntries()
 		{
-			return this._getEntriesAt(this.entries.length-1);
+			return this.getEntriesAt(this.entries.length-1);
 		},
 
 		_getPromotionOptions : function(aArguments)
@@ -1230,7 +1268,7 @@
 		toString : function()
 		{
 			try {
-				var entries = this.entries;
+				var entries = this.entries || [];
 				var metaData = this.metaData;
 				var index = this.index;
 				var string = entries
@@ -1265,50 +1303,25 @@
 	UIHistoryProxy.prototype = {
 		__proto__ : UIHistory.prototype,
 
-		get index()
-		{
-			return this._original.safeIndex;
-		},
-		set index(aValue)
-		{
-			this._original.index = aValue;
-			return aValue;
-		},
+		get key() { return this._original.key; },
+		get name() { return this._original.name; },
+		get window() { return this._original.window; },
+		get windowId() { return this._original.windowId; },
 
-		get entries()
-		{
-			return this._original.entries;
-		},
-		set entries(aValue)
-		{
-			this._original.entries = aValue;
-			return aValue;
-		},
+		get index() { return this._original.safeIndex; },
+		set index(aValue) { return this._original.index = aValue; },
 
-		get metaData()
-		{
-			return this._original.metaData;
-		},
-		set metaData(aValue)
-		{
-			this._original.metaData = aValue;
-			return aValue;
-		},
+		get entries() { return this._original.entries; },
+		set entries(aValue) { return this._original.entries = aValue; },
 
-		get inOperationCount()
-		{
-			return this._original.inOperationCount;
-		},
-		set inOperationCount(aValue)
-		{
-			this._original.inOperationCount = aValue;
-			return aValue;
-		},
+		get metaData() { return this._original.metaData; },
+		set metaData(aValue) { return this._original.metaData = aValue; },
 
-		clear : function()
-		{
-			return this._original.clear();
-		}
+		get inOperationCount() { return this._original.inOperationCount; },
+		set inOperationCount(aValue) { return this._original.inOperationCount = aValue; },
+
+		clear : function() { return this._original.clear(); },
+		toString : function() { return this._original.toString(); }
 	};
 
 	function UIHistoryMetaData()
