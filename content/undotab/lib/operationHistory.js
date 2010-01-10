@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 48;
+	const currentRevision = 49;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -307,8 +307,15 @@
 									break;
 								}
 							}
-							if (self._dispatchEvent('UIOperationHistoryUndo:'+options.name, entry, info) !== false)
-								oneProcessed = true;
+							try {
+								if (self._dispatchEvent('UIOperationHistoryUndo:'+options.name, entry, info) !== false)
+									oneProcessed = true;
+							}
+							catch(e) {
+								log(e, 2);
+								error = e;
+								break;
+							}
 							while (!done)
 							{
 								yield true;
@@ -407,8 +414,15 @@
 									break;
 								}
 							}
-							if (self._dispatchEvent('UIOperationHistoryRedo:'+options.name, entry, info) !== false)
-								oneProcessed = true;
+							try {
+								if (self._dispatchEvent('UIOperationHistoryRedo:'+options.name, entry, info) !== false)
+									oneProcessed = true;
+							}
+							catch(e) {
+								log(e, 2);
+								error = e;
+								break;
+							}
 							while (!done)
 							{
 								yield true;
@@ -522,54 +536,53 @@
 			return this._getRedoingState(options.key);
 		},
 
-		syncWindowHistoryFocus : function(aOptions)
+		fakeUndo : function()
 		{
-			if (!aOptions.currentEntry)
-				throw new Error('currentEntry must be specified!');
-			if (!aOptions.entries)
-				throw new Error('entries must be specified!');
-			if (!aOptions.windows)
+			var options = this._getHistoryOptionsFromArguments(arguments);
+			if (!options.name)
+				options.name = 'window';
+			if (!options.entry)
+				throw new Error('target entry must be specified!');
+			if (!options.window || options.window.closed)
 				throw new Error('windows must be specified!');
-			if (aOptions.entries.length != aOptions.windows.length)
-				throw new Error('numbers of entries and windows must be same!');
 
-			var name = aOptions.name || 'window';
+			var history = this.getHistory(options.name, options.window)._original;
+			var message = 'fakeUndo for '+name+' ('+options.entry.label+')';
+			if (history.currentEntries.indexOf(options.entry) > -1) {
+				history.index--;
+				log(message+'\n => done (current)\n'+history.toString(), 5);
+				return;
+			}
+			if (history.getEntriesAt(history.index-1)) {
+				history.index -= 2;
+				log(message+'\n => done\n'+history.toString(), 5);
+				return;
+			}
+			log(message+'\n => canceled (target entry not found)', 4);
+		},
+		fakeRedo : function()
+		{
+			var options = this._getHistoryOptionsFromArguments(arguments);
+			if (!options.name)
+				options.name = 'window';
+			if (!options.entry)
+				throw new Error('target entry must be specified!');
+			if (!options.window || options.window.closed)
+				throw new Error('windows must be specified!');
 
-			log('syncWindowHistoryFocus for '+name+' ('+aOptions.currentEntry.label+')', 4);
-
-			var baseIndex   = -1;
-			var histories   = [];
-			var indexes     = [];
-			var prevEntries = [];
-			var nextEntries = [];
-			aOptions.windows.forEach(function(aWindow, aIndex) {
-				var history = this.getHistory(name, aWindow)._original;
-				histories.push(history);
-				var index = history.index;
-				indexes.push(index);
-				prevEntries.push(history.getEntriesAt(index-1));
-				nextEntries.push(history.getEntriesAt(index+1));
-				if (baseIndex < 0 &&
-					history.getEntriesAt(index).indexOf(aOptions.currentEntry) > -1) {
-					baseIndex = aIndex;
-				}
-			}, this);
-			aOptions.entries.forEach(function(aEntry, aIndex) {
-				if (aIndex == baseIndex)
-					return;
-				var history = histories[aIndex];
-log('check for:'+
-	history.toString(), 5);
-				var index   = indexes[aIndex];
-				if (prevEntries[aIndex].indexOf(aEntry) > -1) {
-					history.index -= 2;
-					log(' => synced as undo\n'+history.toString(), 5);
-				}
-				else if (nextEntries[aIndex].indexOf(aEntry) > -1) {
-					history.index++;
-					log(' => synced as redo\n'+history.toString(), 5);
-				}
-			}, this);
+			var history = this.getHistory(options.name, options.window)._original;
+			var message = 'fakeRedo for '+name+' ('+options.entry.label+')';
+			if (history.currentEntries.indexOf(options.entry) > -1) {
+				history.index++;
+				log(message+'\n => done (current)\n'+history.toString(), 5);
+				return;
+			}
+			if (history.getEntriesAt(history.index+1).indexOf(options.entry) > -1) {
+				history.index += 2;
+				log(message+'\n => done\n'+history.toString(), 5);
+				return;
+			}
+			log(message+'\n => canceled (target entry not found)', 4);
 		},
 
 		clear : function()

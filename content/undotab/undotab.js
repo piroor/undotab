@@ -653,8 +653,8 @@ var UndoTabService = {
 					case 'undotab-onDrop-importTab-our':
 					case 'undotab-onDrop-importTab-remote':
 							return this.onUndoImportTabOnDrop(aEvent);
-					case 'undotab-tearOffTab-source':
-					case 'undotab-tearOffTab-new':
+					case 'undotab-tearOffTab-our':
+					case 'undotab-tearOffTab-remote':
 							return this.onUndoTearOffTab(aEvent);
 				}
 				break;
@@ -674,8 +674,8 @@ var UndoTabService = {
 					case 'undotab-onDrop-importTab-our':
 					case 'undotab-onDrop-importTab-remote':
 							return this.onRedoImportTabOnDrop(aEvent);
-					case 'undotab-tearOffTab-source':
-					case 'undotab-tearOffTab-new':
+					case 'undotab-tearOffTab-our':
+					case 'undotab-tearOffTab-remote':
 							return this.onRedoTearOffTab(aEvent);
 				}
 				break;
@@ -912,7 +912,7 @@ var UndoTabService = {
  
 	onTabMove : function UT_onTabMove(aTask, aTabBrowser, aTab, aOldPosition) 
 	{
-		if (!this.isUndoable)
+		if (!this.isUndoable || aTab._tPos == aOldPosition)
 			return aTask.call(aTabBrowser);
 
 		this.manager.doOperation(
@@ -925,9 +925,9 @@ var UndoTabService = {
 				name  : 'undotab-moveTab',
 				label : this.bundle.getString('undo_moveTab_label'),
 				data  : {
-					parent    : this.manager.getBindingParentId(aTabBrowser),
-					browser   : this.manager.getId(aTabBrowser),
-					tab       : this.manager.getId(aTab),
+					parent  : this.manager.getBindingParentId(aTabBrowser),
+					browser : this.manager.getId(aTabBrowser),
+					tab     : this.manager.getId(aTab),
 
 					newPosition : aTab._tPos,
 					oldPosition : aOldPosition
@@ -1203,24 +1203,17 @@ var UndoTabService = {
 					// just after continuation() is called.
 					remoteWindow.setTimeout(function() {
 						aEvent.manager.addEntry('TabbarOperations', remoteWindow, data.remote.entry);
-						aEvent.manager.syncWindowHistoryFocus({
-							currentEntry : entry,
-							name         : 'TabbarOperations',
-							entries      : [data.our.entry, data.remote.entry],
-							windows      : [our.window, remoteWindow]
-						});
-					}, 50);
+						aEvent.manager.fakeUndo('TabbarOperations', remoteWindow, data.remote.entry);
+					}, 250);
 				}, 10);
 			}, false);
 			return;
 		}
 
-		this.manager.syncWindowHistoryFocus({
-			currentEntry : entry,
-			name         : 'TabbarOperations',
-			entries      : [data.our.entry, data.remote.entry],
-			windows      : [our.window, remote.window]
-		});
+		if (entry == data.our.entry)
+			this.manager.fakeUndo('TabbarOperations', remote.window, data.remote.entry);
+		else
+			this.manager.fakeUndo('TabbarOperations', our.window, data.our.entry);
 
 		var selected = this.manager.getTargetById(data.our.selected, our.browser.mTabContainer);
 		if (selected)
@@ -1254,12 +1247,10 @@ var UndoTabService = {
 		if (!remote.window || !remote.browser || !remote.tab)
 			return aEvent.preventDefault();
 
-		this.manager.syncWindowHistoryFocus({
-			currentEntry : entry,
-			name         : 'TabbarOperations',
-			entries      : [data.our.entry, data.remote.entry],
-			windows      : [our.window, remote.window]
-		});
+		if (entry == data.our.entry)
+			this.manager.fakeRedo('TabbarOperations', remote.window, data.remote.entry);
+		else
+			this.manager.fakeRedo('TabbarOperations', our.window, data.our.entry);
 
 		var willClose = remote.browser.mTabContainer.childNodes.length == 1;
 		data.remote.width  = remote.window.outerWidth;
@@ -1357,12 +1348,10 @@ var UndoTabService = {
 				remote.browser.selectedTab = selected;
 		}
 
-		this.manager.syncWindowHistoryFocus({
-			currentEntry : entry,
-			name         : 'TabbarOperations',
-			entries      : [data.our.entry, data.remote.entry],
-			windows      : [our.window, remote.window]
-		});
+		if (entry == data.our.entry)
+			this.manager.fakeUndo('TabbarOperations', remote.window, data.remote.entry);
+		else
+			this.manager.fakeUndo('TabbarOperations', our.window, data.our.entry);
 	},
 	onRedoImportTabOnDrop : function UT_onRedoImportTabOnDrop(aEvent)
 	{
@@ -1371,9 +1360,13 @@ var UndoTabService = {
 
 		var our = this.getTabOpetarionTargets(data.our);
 		if (our.browser) {
-			let selected = this.manager.getTargetById(data.our.newSelected, our.browser.mTabContainer);
-			if (selected)
-				our.browser.selectedTab = selected;
+			// We have to change focus with delay, because the tab is not imported yet.
+			// (It will be imported by onRedoSwapBrowsersAndCloseOther().)
+			our.window.setTimeout(function() {
+				let selected = aEvent.manager.getTargetById(data.our.newSelected, our.browser.mTabContainer);
+				if (selected)
+					our.browser.selectedTab = selected;
+			}, 100);
 		}
 
 		var remote = this.getTabOpetarionTargets(data.remote);
@@ -1383,12 +1376,10 @@ var UndoTabService = {
 				remote.browser.selectedTab = selected;
 		}
 
-		this.manager.syncWindowHistoryFocus({
-			currentEntry : entry,
-			name         : 'TabbarOperations',
-			entries      : [data.our.entry, data.remote.entry],
-			windows      : [our.window, remote.window]
-		});
+		if (entry == data.our.entry)
+			this.manager.fakeRedo('TabbarOperations', remote.window, data.remote.entry);
+		else
+			this.manager.fakeRedo('TabbarOperations', our.window, data.our.entry);
 	},
  
 	openNewTabOnDrop : function UT_openNewTabOnDrop(aTask, aTabBrowser) 
@@ -1417,71 +1408,71 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aTabBrowser);
 
-		var sourceBrowser = this.getTabBrowserFromChild(aSourceTab);
-		var sourceWindow  = aSourceTab.ownerDocument.defaultView;
+		var ourBrowser = this.getTabBrowserFromChild(aSourceTab);
+		var ourWindow  = aSourceTab.ownerDocument.defaultView;
 
 		var data = {
-				source : {
-					window  : this.manager.getId(sourceWindow),
-					parent  : this.manager.getBindingParentId(sourceBrowser),
-					browser : this.manager.getId(sourceBrowser),
+				our : {
+					window  : this.manager.getId(ourWindow),
+					parent  : this.manager.getBindingParentId(ourBrowser),
+					browser : this.manager.getId(ourBrowser),
 					tab     : this.manager.getId(aSourceTab),
 					position   : aSourceTab._tPos,
 					isSelected : aSourceTab.selected
 				},
-				new : {
+				remote : {
 					window : null
 				}
 			};
-		data.source.entry = {
-			name  : 'undotab-tearOffTab-source',
+		data.our.entry = {
+			name  : 'undotab-tearOffTab-our',
 			label : this.bundle.getString('undo_tearOffTab_label'),
 			data  : data
 		};
-		data.new.entry = {
-			name  : 'undotab-tearOffTab-new',
+		data.remote.entry = {
+			name  : 'undotab-tearOffTab-remote',
 			label : this.bundle.getString('undo_tearOffTab_label'),
 			data  : data
 		};
 
-		var newWindow;
+		var remoteWindow;
 		this.manager.doOperation(
 			function(aInfo) {
-				newWindow = aTask.call(aTabBrowser);
-				if (!newWindow)
+				remoteWindow = aTask.call(aTabBrowser);
+				if (!remoteWindow)
 					return false;
 
 				var continuation = aInfo.getContinuation();
-				newWindow.addEventListener('load', function() {
-					newWindow.removeEventListener('load', arguments.callee, false);
-					data.new.window = aInfo.manager.getWindowId(newWindow);
-					newWindow.setTimeout(function() { // wait for tab swap
+				remoteWindow.addEventListener('load', function() {
+					remoteWindow.removeEventListener('load', arguments.callee, false);
+					data.remote.window = aInfo.manager.getWindowId(remoteWindow);
+					remoteWindow.setTimeout(function() { // wait for tab swap
 						aInfo.manager.addEntry(
 							'TabbarOperations',
-							newWindow,
-							data.new.entry
+							remoteWindow,
+							data.remote.entry
 						);
 						continuation();
 					}, 10);
 				}, false);
 			},
 			'TabbarOperations',
-			sourceWindow,
-			data.source.entry
+			ourWindow,
+			data.our.entry
 		);
 
-		return newWindow;
+		return remoteWindow;
 	},
 	onUndoTearOffTab : function UT_onUndoTearOffTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-		var source = this.getTabOpetarionTargets(data.source);
-		if (!source.window || !source.browser)
+		var our = this.getTabOpetarionTargets(data.our);
+		if (!our.window || !our.browser)
 			return aEvent.preventDefault();
 
-		var remote = this.getTabOpetarionTargets(data.new);
+		var remote = this.getTabOpetarionTargets(data.remote);
 		if (!remote.window || remote.window.closed)
 			return aEvent.preventDefault();
 
@@ -1490,57 +1481,49 @@ var UndoTabService = {
 		data.x      = remote.window.screenX;
 		data.y      = remote.window.screenY;
 
-		this.manager.syncWindowHistoryFocus({
-			currentEntry : entry,
-			name         : 'TabbarOperations',
-			entries      : [data.source.entry, data.new.entry],
-			windows      : [source.window, remote.window]
-		});
+		if (entry == data.our.entry)
+			this.manager.fakeUndo('TabbarOperations', remote.window, data.remote.entry);
+		else
+			this.manager.fakeUndo('TabbarOperations', our.window, data.our.entry);
 
 		// Tab was possibly restored by undoing of removeTab(),
 		// so close it internally.
-		if (source.tab)
-			this.irrevocableRemoveTab(source.tab, source.browser);
+		if (our.tab)
+			this.irrevocableRemoveTab(our.tab, our.browser);
 
-		source.tab = this.importTabTo(remote.window.gBrowser.selectedTab, source.browser);
-		data.source.tab = this.manager.setElementId(source.tab, data.source.tab);
+		our.tab = this.importTabTo(remote.window.gBrowser.selectedTab, our.browser);
+		data.our.tab = this.manager.setElementId(our.tab, data.our.tab);
 
-		source.browser.moveTabTo(source.tab, data.source.position);
-		data.source.position = source.tab._tPos;
+		our.browser.moveTabTo(our.tab, data.our.position);
+		data.our.position = our.tab._tPos;
 
-		if (data.source.isSelected)
-			source.browser.selectedTab = source.tab;
+		if (data.our.isSelected)
+			our.browser.selectedTab = our.tab;
 	},
 	onRedoTearOffTab : function UT_onRedoTearOffTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-		var source = this.getTabOpetarionTargets(data.source);
-		if (!source.window || !source.browser || !source.tab)
+		var our = this.getTabOpetarionTargets(data.our);
+		if (!our.window || !our.browser || !our.tab)
 			return aEvent.preventDefault();
 
 		var continuation = aEvent.getContinuation();
-		var newWindow = source.browser.replaceTabWithWindow(source.tab);
-		newWindow.addEventListener('load', function() {
-			newWindow.removeEventListener('load', arguments.callee, false);
-			data.new.window = aEvent.manager.setWindowId(newWindow, data.new.window);
-			newWindow.setTimeout(function() {
-				remote.window.resizeTo(data.width, data.height);
-				remote.window.moveTo(data.x, data.y);
+		var remoteWindow = our.browser.replaceTabWithWindow(our.tab);
+		remoteWindow.addEventListener('load', function() {
+			remoteWindow.removeEventListener('load', arguments.callee, false);
+			data.remote.window = aEvent.manager.setWindowId(remoteWindow, data.remote.window);
+			remoteWindow.setTimeout(function() {
+				remoteWindow.resizeTo(data.width, data.height);
+				remoteWindow.moveTo(data.x, data.y);
 				continuation();
 				// We have to register new entry with delay, because
 				// the state of the manager is still "redoing" when
 				// just after continuation() is called.
-				newWindow.setTimeout(function() {
-					aEvent.manager.addEntry('TabbarOperations', newWindow, data.new.entry);
-					aEvent.manager.syncWindowHistoryFocus({
-						currentEntry : entry,
-						name         : 'TabbarOperations',
-						entries      : [data.source.entry, data.new.entry],
-						windows      : [source.window, newWindow]
-					});
-				}, 50);
+				remoteWindow.setTimeout(function() {
+					aEvent.manager.addEntry('TabbarOperations', remoteWindow, data.remote.entry);
+				}, 250);
 			}, 10);
 		}, false);
 	},
