@@ -246,7 +246,6 @@ var UndoTabService = {
 		var targets = {
 				window  : null,
 				browser : null,
-				parent  : null,
 				tab     : null,
 				tabs    : []
 			};
@@ -259,14 +258,8 @@ var UndoTabService = {
 
 		var manager = targets.window['piro.sakura.ne.jp'].operationHistory;
 
-		targets.parent = aData.parent ?
-				manager.getTargetById(aData.parent, targets.window) :
-				targets.window ;
-		if (!targets.parent)
-			return targets;
-
 		targets.browser = aData.browser ?
-				manager.getTargetById(aData.browser, targets.parent) :
+				manager.getTargetById(aData.browser, targets.window) :
 				null ;
 		if (!targets.browser || (!aData.tab && !aData.tabs))
 			return targets;
@@ -710,7 +703,6 @@ var UndoTabService = {
 				name  : 'undotab-addTab',
 				label : this.bundle.getString('undo_addTab_label'),
 				data  : {
-					parent    : this.manager.getBindingParentId(aTabBrowser),
 					browser   : this.manager.getId(aTabBrowser),
 					tab       : this.manager.getId(aTab),
 					state     : this.getTabState(aTab),
@@ -773,7 +765,6 @@ var UndoTabService = {
 		var data = {
 				uris : Array.slice(aArguments[0]),
 
-				parent  : this.manager.getBindingParentId(aTabBrowser),
 				browser : this.manager.getId(aTabBrowser),
 				tabs    : [],
 
@@ -854,7 +845,6 @@ var UndoTabService = {
 				name  : 'undotab-removeTab',
 				label : this.bundle.getString('undo_removeTab_label'),
 				data  : {
-					parent  : this.manager.getBindingParentId(aTabBrowser),
 					browser : this.manager.getId(aTabBrowser),
 					tab     : this.manager.getId(aTab),
 
@@ -925,7 +915,6 @@ var UndoTabService = {
 				name  : 'undotab-moveTab',
 				label : this.bundle.getString('undo_moveTab_label'),
 				data  : {
-					parent  : this.manager.getBindingParentId(aTabBrowser),
 					browser : this.manager.getId(aTabBrowser),
 					tab     : this.manager.getId(aTab),
 
@@ -969,12 +958,10 @@ var UndoTabService = {
 		var data = {
 				remote : {
 					window  : this.manager.getId(b.ownerDocument.defaultView),
-					parent  : this.manager.getBindingParentId(b),
 					browser : this.manager.getId(b),
 					tab     : this.manager.getId(aTab)
 				},
 				our : {
-					parent  : this.manager.getBindingParentId(aTabBrowser),
 					browser : this.manager.getId(aTabBrowser),
 					tab     : null,
 
@@ -1059,7 +1046,6 @@ var UndoTabService = {
 				name  : 'undotab-removeAllTabsBut',
 				label : this.bundle.getString('undo_removeAllTabsBut_label'),
 				data  : {
-					parent  : this.manager.getBindingParentId(aTabBrowser),
 					browser : this.manager.getId(aTabBrowser),
 					tab     : this.manager.getId(aTabBrowser.selectedTab),
 
@@ -1113,14 +1099,12 @@ var UndoTabService = {
 				our : {
 					tab     : this.manager.getId(ourTab),
 					browser : this.manager.getId(ourBrowser),
-					parent  : this.manager.getBindingParentId(ourBrowser),
 					window  : this.manager.getId(ourWindow),
 					selected : this.manager.getId(ourBrowser.selectedTab)
 				},
 				remote : {
 					tab     : this.manager.getId(remoteTab),
 					browser : this.manager.getId(remoteBrowser),
-					parent  : this.manager.getBindingParentId(remoteBrowser),
 					window  : this.manager.getId(remoteWindow),
 					selected  : this.manager.getId(remoteBrowser.selectedTab),
 					width  : remoteWindow.outerWidth,
@@ -1194,7 +1178,6 @@ var UndoTabService = {
 					var b = remoteWindow.gBrowser;
 					aEvent.manager.setElementId(b.selectedTab, data.remote.tab);
 					aEvent.manager.setElementId(b, data.remote.browser);
-					aEvent.manager.setBindingParentId(b, data.remote.parent);
 					remoteWindow.resizeTo(data.remote.width, data.remote.height);
 					remoteWindow.moveTo(data.remote.x, data.remote.y);
 					aEvent.continue();
@@ -1285,13 +1268,11 @@ var UndoTabService = {
 		var data = {
 				our : {
 					browser : this.manager.getId(aTabBrowser),
-					parent  : this.manager.getBindingParentId(aTabBrowser),
 					window  : this.manager.getId(aTabBrowser.ownerDocument.defaultView),
 					oldSelected : this.manager.getId(aTabBrowser.selectedTab)
 				},
 				remote : {
 					browser : this.manager.getId(remoteBrowser),
-					parent  : this.manager.getBindingParentId(remoteBrowser),
 					window  : this.manager.getId(remoteWindow),
 					oldSelected : this.manager.getId(remoteBrowser.selectedTab),
 					willClose   : remoteBrowser.mTabContainer.childNodes.length == 1
@@ -1414,7 +1395,6 @@ var UndoTabService = {
 		var data = {
 				our : {
 					window  : this.manager.getId(ourWindow),
-					parent  : this.manager.getBindingParentId(ourBrowser),
 					browser : this.manager.getId(ourBrowser),
 					tab     : this.manager.getId(aSourceTab),
 					position   : aSourceTab._tPos,
