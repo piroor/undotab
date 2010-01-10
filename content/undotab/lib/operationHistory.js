@@ -74,7 +74,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 50;
+	const currentRevision = 52;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -582,7 +582,7 @@
 				log(message+'\n => done (current)\n'+history.toString(), 5);
 				return;
 			}
-			if (history.getEntriesAt(history.index-1)) {
+			if (history.getEntriesAt(history.index-1).indexOf(options.entry) > -1) {
 				history.index -= 2;
 				log(message+'\n => done\n'+history.toString(), 5);
 				return;
@@ -706,7 +706,7 @@
 			return id;
 		},
 
-		setBindingParentId : function(aNode, aDefaultId)
+		setBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
 		{
 			var parent = aNode.ownerDocument.getBindingParent(aNode);
 			return parent ? this.setElementId(parent, aDefaultId) : null ;
@@ -749,7 +749,7 @@
 			throw new Error(aTarget+' is an unknown type item.');
 		},
 
-		getBindingParentId : function(aNode, aDefaultId)
+		getBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
 		{
 			var parent = aNode.ownerDocument.getBindingParent(aNode);
 			return parent ? this.getId(parent, aDefaultId) : null ;
@@ -781,6 +781,16 @@
 			Array.slice(arguments).forEach(function(aArg) {
 				if (typeof aArg == 'string')
 					ids.push(aArg);
+				else if (
+						typeof aArg == 'object' &&
+						'length' in aArg &&
+						'every' in aArg &&
+						typeof aArg.every == 'function' &&
+						aArg.every(function(aItem) {
+							return typeof aItem == 'string';
+						})
+					)
+					ids = ids.concat(aArg);
 				else
 					otherArgs.push(aArg);
 			});
@@ -792,7 +802,7 @@
 				}, this);
 		},
 
-		getRelatedTargetsByIds : function(aIds, aRootParent) 
+		getRelatedTargetsByIds : function(aIds, aRootParent) // => planned to be removed or updated...
 		{
 			var results = [];
 			var lastParent = aRootParent;
