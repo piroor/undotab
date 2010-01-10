@@ -142,6 +142,9 @@ var UndoTabService = {
 		}
 		if (b.contentWindow && b.contentWindow.location)
 			b.contentWindow.location.replace('about:blank');
+
+		delete aTab.linkedBrowser.parentNode.__SS_data;
+		delete aTab.__SS_extdata;
 	},
  
 	irrevocableRemoveTab : function UT_irrevocableRemoveTab(aTab, aTabBrowser)
@@ -149,6 +152,14 @@ var UndoTabService = {
 		// nsSessionStore.js doesn't save the tab to the undo cache
 		// if the tab is completely blank.
 		this.makeTabBlank(aTab);
+
+		// override session data to prevent undo
+		aTab.linkedBrowser.parentNode.__SS_data = {
+			entries : [],
+			_tabStillLoading : true, // for Firefox 3.5 or later
+			_tab : aTab // for Firefox 3.0.x
+		};
+
 		(aTabBrowser || this.getTabBrowserFromChild(aTab))
 			.removeTab(aTab);
 	},
@@ -645,7 +656,6 @@ var UndoTabService = {
 					case 'undotab-tearOffTab-source':
 					case 'undotab-tearOffTab-new':
 							return this.onUndoTearOffTab(aEvent);
-					case 'undotab-undoCloseTab': return this.onUndoUndoCloseTab(aEvent);
 				}
 				break;
 
@@ -667,7 +677,6 @@ var UndoTabService = {
 					case 'undotab-tearOffTab-source':
 					case 'undotab-tearOffTab-new':
 							return this.onRedoTearOffTab(aEvent);
-					case 'undotab-undoCloseTab': return this.onRedoUndoCloseTab(aEvent);
 				}
 				break;
 		}
@@ -743,7 +752,7 @@ var UndoTabService = {
 
 		var tab = target.browser.addTab.apply(target.browser, data.arguments);
 		this.setTabState(tab, data.state);
-		data.tab = this.manager.getId(tab, data.tab);
+		data.tab = this.manager.setElementId(tab, data.tab);
 
 		target.browser.moveTabTo(tab, data.position);
 		data.position = tab._tPos;
@@ -869,7 +878,7 @@ var UndoTabService = {
 
 		var tab = target.browser.addTab('about:blank');
 		this.setTabState(tab, data.state);
-		data.tab = this.manager.getId(tab, data.tab);
+		data.tab = this.manager.setElementId(tab, data.tab);
 
 		target.browser.moveTabTo(tab, data.position);
 
@@ -885,7 +894,7 @@ var UndoTabService = {
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-		var target = this.getTabOpetarionTargetsByIds(data);
+		var target = this.getTabOpetarionTargets(data);
 		if (!target.browser || !target.tab)
 			return aEvent.preventDefault();
 
@@ -1020,7 +1029,7 @@ var UndoTabService = {
 			return aEvent.preventDefault();
 
 		var tab = our.browser.duplicateTab(remote.tab);
-		data.our.tab = this.manager.getId(tab, data.our.tab);
+		data.our.tab = this.manager.setElementId(tab, data.our.tab);
 
 		if (data.our.position > -1)
 			our.browser.moveTabTo(tab, data.our.position);
@@ -1489,7 +1498,7 @@ var UndoTabService = {
 		var newWindow = source.browser.replaceTabWithWindow(source.tab);
 		newWindow.addEventListener('load', function() {
 			newWindow.removeEventListener('load', arguments.callee, false);
-			aEvent.manager.setWindowId(newWindow, data.new.window);
+			data.new.window = aEvent.manager.setWindowId(newWindow, data.new.window);
 			newWindow.setTimeout(function() {
 				continuation();
 				// We have to register new entry with delay, because
@@ -1507,57 +1516,20 @@ var UndoTabService = {
 		if (!this.isUndoable)
 			return aTask.call(aThis);
 
-		var data = {};
-
 		var tab;
 		this.manager.doUndoableTask(
 			function(aInfo) {
 				tab = aTask.apply(aThis, aArguments);
 				if (!tab) return false;
-
-				var b = UndoTabService.getTabBrowserFromChild(tab);
-				data.parent  = this.manager.getBindingParentId(b);
-				data.browser = this.manager.getId(b);
-				data.tab     = this.manager.getId(tab);
-				data.isSelected = tab.selected;
 			},
 			'TabbarOperations',
 			window,
 			{
 				name  : 'undotab-undoCloseTab',
-				label : this.bundle.getString('undo_undoCloseTab_label'),
-				data  : data
+				label : this.bundle.getString('undo_undoCloseTab_label')
 			}
 		);
 		return tab;
-	},
-	onUndoUndoCloseTab : function UT_onUndoUndoCloseTab(aEvent)
-	{
-		var entry = aEvent.entry;
-		var data  = entry.data;
-
-		var target = this.getTabOpetarionTargets(data);
-		if (!target.browser || !target.tab)
-			return aEvent.preventDefault();
-
-		data.state = this.getTabState(target.tab);
-		target.browser.removeTab(tab);
-	},
-	onRedoUndoCloseTab : function UT_onRedoUndoCloseTab(aEvent)
-	{
-		var entry = aEvent.entry;
-		var data  = entry.data;
-
-		var target = this.getTabOpetarionTargets(data);
-		if (!target.browser)
-			return aEvent.preventDefault();
-
-		var tab = t.browser.addTab('about:blank');
-		this.setTabState(tab, data.state);
-		target.browser.moveTabTo(tab, data.position);
-		data.position = tab._tPos;
-		if (data.isSelected)
-			target.browser.selectedTab = tab;
 	},
   
 /* Prefs */ 
