@@ -1476,14 +1476,19 @@ var UndoTabService = {
 			windows      : [source.window, remote.window]
 		});
 
-		var restoredTab = this.importTabTo(remote.window.gBrowser.selectedTab, source.browser);
-		this.manager.setElementId(restoredTab, data.source.tab);
+		// Tab was possibly restored by undoing of removeTab(),
+		// so close it internally.
+		if (source.tab)
+			this.irrevocableRemoveTab(source.tab, source.browser);
 
-		source.browser.moveTabTo(restoredTab, data.source.position);
-		data.source.position = restoredTab._tPos;
+		source.tab = this.importTabTo(remote.window.gBrowser.selectedTab, source.browser);
+		data.source.tab = this.manager.setElementId(source.tab, data.source.tab);
+
+		source.browser.moveTabTo(source.tab, data.source.position);
+		data.source.position = source.tab._tPos;
 
 		if (data.source.isSelected)
-			source.browser.selectedTab = restoredTab;
+			source.browser.selectedTab = source.tab;
 	},
 	onRedoTearOffTab : function UT_onRedoTearOffTab(aEvent)
 	{
