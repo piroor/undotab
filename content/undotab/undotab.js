@@ -129,7 +129,7 @@ var UndoTabService = {
 			).singleNodeValue;
 	},
  
-	makeTabBlank : function UT_makeTabBrank(aTab)
+	makeTabBlank : function UT_makeTabBlank(aTab)
 	{
 		var b = aTab.linkedBrowser;
 		try {
@@ -1203,7 +1203,7 @@ var UndoTabService = {
 			our.browser.selectedTab = selected;
 
 		if (remote.tab) { // reuse the tab restored by onUndo() of remoteTab()
-			remote.window.UndoTabService.makeTabBlank(remote.tab);
+			this.makeTabBlank(remote.tab);
 		}
 		else {
 			remote.tab = remote.browser.addTab('about:blank');
@@ -1240,7 +1240,7 @@ var UndoTabService = {
 		var willClose = remote.browser.mTabContainer.childNodes.length == 1;
 
 		if (our.tab) {
-			our.window.UndoTabService.makeTabBlank(our.tab); // ensure it is a blank tab
+			this.makeTabBlank(our.tab);
 		}
 		else {
 			our.tab = our.browser.addTab('about:blank');
@@ -1394,7 +1394,7 @@ var UndoTabService = {
 			windows      : [source.window, remoteWindow]
 		});
 
-		var restoredTab = source.window.UndoTabService.importTabTo(remoteWindow.gBrowser.selectedTab, source.browser);
+		var restoredTab = this.importTabTo(remoteWindow.gBrowser.selectedTab, source.browser);
 		this.manager.setElementId(restoredTab, data.sourceTabId);
 
 		source.browser.moveTabTo(restoredTab, data.sourcePosition);
