@@ -2,10 +2,10 @@
 <!DOCTYPE overlay SYSTEM "chrome://undotab/locale/undotab.dtd">
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-<script src="lib/operationHistory.js" type="application/x-javascript; version=1.7"/>
-<script src="lib/prefs.js" type="application/x-javascript; version=1.7"/>
-<script src="lib/stopRendering.js" type="application/x-javascript; version=1.7"/>
-<script src="undotab.js" type="application/x-javascript; version=1.7"/>
+<script src="lib/operationHistory.js" type="application/x-javascript"/>
+<script src="lib/prefs.js" type="application/x-javascript"/>
+<script src="lib/stopRendering.js" type="application/x-javascript"/>
+<script src="undotab.js" type="application/x-javascript"/>
 
 <stringbundleset id="stringbundleset">
 	<stringbundle id="undotab-bundle" src="chrome://undotab/locale/undotab.properties"/>

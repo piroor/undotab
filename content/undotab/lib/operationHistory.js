@@ -6,22 +6,18 @@
 
    // window specific history
    OH.doOperation(
-     // the task which is undo-able (optional)
+     // the operation which becomes "undo-able" (optional)
      function() {
        MyService.myProp = newValue;
      },
-
      // name of history (optional)
      'MyAddonFeature',
-
      // target window for the history (optional)
      window,
-
-     // history item
-     { label  : 'Change tabbar position',
+     // history entry
+     { name   : 'myaddon-changeTabbar',
+       label  : 'Change tabbar position',
        onUndo : function() { MyService.myProp = oldValue; },
-       // "onRedo" is optional. If you don't specify it,
-       // the undoable task becomes onRedo automatically.
        onRedo : function() { MyService.myProp = newValue; } }
    );
    OH.undo('MyAddonFeature', window);
@@ -29,7 +25,7 @@
 
    // global history (not associated to window)
    OH.doOperation(
-     function() { ... }, // task
+     function() { ... },
      'MyAddonFeature',
      { ... }
    );
@@ -43,19 +39,26 @@
    OH.doOperation(function() { ... }, { ... });
    OH.undo();
 
-   // When you want to use "window" object in the global history,
-   // you should use the ID string instead of the "window" object
-   // to reduce memory leak. For example...
+   // You should use "getId()" and "getTargetById()" to get
+   // windows and DOM elements which are targets of operations.
+   var w, b, t;
    OH.doOperation(
      function() {
-       targetWindow.MyAddonService.myProp = newValue;
+	   var tab = targetWindow.gBrowser.selectedTab;
+       w = OH.getId(targetWindow);
+       b = OH.getId(targetWindow.gBrowser);
+       t = OH.getId(tab);
+       tab.style.border = '2px solid red';
      },
      {
        id : OH.getWindowId(targetWindow),
        onUndo : function() {
-         var w = OH.getWindowById(this.id);
-         w.MyAddonService.myProp = oldValue;
-       }
+         var win = OH.getTargetById(w);
+         var browser = OH.getTargetById(b, win);
+         var tab = OH.getTargetById(t, b.mTabContainer);
+         tab.style.border = '';
+       },
+       onRedo : function() { ... }
      }
    );
 
@@ -102,8 +105,10 @@
 
 	const PREF_PREFIX = 'extensions.UIOperationsHistoryManager@piro.sakura.ne.jp.';
 
-	const Application = Cc['@mozilla.org/fuel/application;1']
-					.getService(Ci.fuelIApplication);
+	const Application = 'fuelIApplication' in Ci ?
+				Cc['@mozilla.org/fuel/application;1']
+					.getService(Ci.fuelIApplication) :
+				null ;
 	const Prefs = Cc['@mozilla.org/preferences;1']
 					.getService(Ci.nsIPrefBranch);
 	const WindowMediator = Cc['@mozilla.org/appshell/window-mediator;1']
@@ -120,7 +125,7 @@
 
 	const oneIndent = '   ';
 	function log(aString, aLevel) {
-		if (!DEBUG) return;
+		if (!DEBUG || !Application) return;
 		aString = String(aString);
 		if (aLevel) {
 			let indent = '';
