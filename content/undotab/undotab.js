@@ -219,9 +219,9 @@ var UndoTabService = {
 		return this.manager.addEntry(this.HISTORY_NAME, window, aEntry);
 	},
  
-	doOperation : function UT_doOperation(aOperation, aEntry) /* PUBLIC API (inherited from operationHistory) */ 
+	doOperation : function UT_doOperation() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.addEntry(aOperation, this.HISTORY_NAME, window, aEntry);
+		return this.manager.doOperation.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME, window]));
 	},
  
 	getHistory : function UT_getHistory() /* PUBLIC API (inherited from operationHistory) */ 
@@ -257,14 +257,14 @@ var UndoTabService = {
 		return this.manager.isUndoable(this.HISTORY_NAME, window);
 	},
  
-	fakeUndo : function UT_fakeUndo(aWindow, aEntry) /* PUBLIC API (inherited from operationHistory) */ 
+	fakeUndo : function UT_fakeUndo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.fakeUndo(this.HISTORY_NAME, aWindow, aEntry);
+		return this.manager.fakeUndo.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME]));
 	},
  
-	fakeRedo : function UT_fakeRedo(aWindow, aEntry) /* PUBLIC API (inherited from operationHistory) */ 
+	fakeRedo : function UT_fakeRedo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.fakeRedo(this.HISTORY_NAME, aWindow, aEntry);
+		return this.manager.fakeRedo.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME]));
 	},
  
 	getWindowId : function UT_getWindowId() /* PUBLIC API (inherited from operationHistory) */ 
