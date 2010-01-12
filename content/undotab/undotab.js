@@ -858,7 +858,7 @@ var UndoTabService = {
 		if (!this.isUndoable())
 			return aTask.call(aTabBrowser);
 
-		var data = self.getTabOpetarionTargetsData({
+		var data = this.getTabOpetarionTargetsData({
 				browser : aTabBrowser
 				},{
 				uris            : Array.slice(aArguments[0]),
@@ -1127,13 +1127,14 @@ var UndoTabService = {
 			return aTask.call(aTabBrowser);
 
 		var retVal;
+		var self = this;
 		this.manager.doOperation(
 			function(aInfo) {
-				var count = UndoTabService.getTabs(aTabBrowser).snapshotLength;
+				var count = self.getTabs(aTabBrowser).snapshotLength;
 				retVal = aTask.call(aTabBrowser);
 
 				// don't register if the operation is canceled.
-				return UndoTabService.getTabs(aTabBrowser).snapshotLength != count;
+				return self.getTabs(aTabBrowser).snapshotLength != count;
 			},
 			this.HISTORY_NAME,
 			window,
