@@ -729,6 +729,8 @@ var UndoTabService = {
 			case 'UIOperationHistoryPreUndo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
+					case 'undotab-loadTabs':
+						return this.onPreUndoLoadTabs(aEvent);
 					case 'undotab-duplicateTab':
 						return this.onPreUndoDuplicateTab(aEvent);
 				}
@@ -737,10 +739,14 @@ var UndoTabService = {
 			case 'UIOperationHistoryUndo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
-					case 'undotab-addTab':    return this.onUndoTabOpen(aEvent);
-					case 'undotab-loadTabs':  return this.onUndoLoadTabs(aEvent);
-					case 'undotab-removeTab': return this.onUndoTabClose(aEvent);
-					case 'undotab-moveTab':   return this.onUndoTabMove(aEvent);
+					case 'undotab-addTab':
+						return this.onUndoTabOpen(aEvent);
+					case 'undotab-loadTabs':
+						return this.onUndoLoadTabs(aEvent);
+					case 'undotab-removeTab':
+						return this.onUndoTabClose(aEvent);
+					case 'undotab-moveTab':
+						return this.onUndoTabMove(aEvent);
 					case 'undotab-removeAllTabsBut':
 						return this.onUndoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
@@ -758,10 +764,14 @@ var UndoTabService = {
 			case 'UIOperationHistoryRedo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
-					case 'undotab-addTab':    return this.onRedoTabOpen(aEvent);
-					case 'undotab-loadTabs':  return this.onRedoLoadTabs(aEvent);
-					case 'undotab-removeTab': return this.onRedoTabClose(aEvent);
-					case 'undotab-moveTab':   return this.onRedoTabMove(aEvent);
+					case 'undotab-addTab':
+						return this.onRedoTabOpen(aEvent);
+					case 'undotab-loadTabs':
+						return this.onRedoLoadTabs(aEvent);
+					case 'undotab-removeTab':
+						return this.onRedoTabClose(aEvent);
+					case 'undotab-moveTab':
+						return this.onRedoTabMove(aEvent);
 					case 'undotab-removeAllTabsBut':
 						return this.onRedoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
@@ -779,6 +789,8 @@ var UndoTabService = {
 			case 'UIOperationHistoryPostRedo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
+					case 'undotab-loadTabs':
+						return this.onPostRedoLoadTabs(aEvent);
 					case 'undotab-duplicateTab':
 						return this.onPostRedoDuplicateTab(aEvent);
 				}
@@ -910,32 +922,45 @@ var UndoTabService = {
 			}
 		);
 	},
+	onPreUndoLoadTabs : function UT_onPreUndoLoadTabs(aEvent)
+	{
+		var entry  = aEvent.entry;
+		var data   = entry.data;
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (target.browser)
+			data.selected = this.manager.getId(target.browser.selectedTab);
+	},
 	onUndoLoadTabs : function UT_onUndoLoadTabs(aEvent)
 	{
-		var entry = aEvent.entry;
-		var data  = entry.data;
-
+		var entry  = aEvent.entry;
+		var data   = entry.data;
 		var target = this.getTabOpetarionTargetsBy(data);
 		if (!target.browser)
 			return aEvent.preventDefault();
 
-		data.selected = this.manager.getId(target.browser.selectedTab);
 		if (data.replace)
 			this.setTabState(target.tab, data.currentTabState);
 	},
 	onRedoLoadTabs : function UT_onRedoLoadTabs(aEvent)
 	{
-		var entry = aEvent.entry;
-		var data  = entry.data;
-
+		var entry  = aEvent.entry;
+		var data   = entry.data;
 		var target = this.getTabOpetarionTargetsBy(data);
 		if (!target.browser || target.tabs.length != data.tabs.length)
 			return aEvent.preventDefault();
 
 		if (data.replace)
 			target.tabs[0].linkedBrowser.loadURI(data.uris[0], null, null);
+	},
+	onPostRedoLoadTabs : function UT_onPostRedoLoadTabs(aEvent)
+	{
+		var entry  = aEvent.entry;
+		var data   = entry.data;
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (!target.browser)
+			return;
 
-		var selected = this.manager.getTargetById(data.selectedTab, target.browser);
+		var selected = this.manager.getTargetById(data.selected, target.browser);
 		if (selected)
 			target.browser.selectedTab = selected;
 	},
@@ -1332,7 +1357,7 @@ var UndoTabService = {
 		if (selected)
 			our.browser.selectedTab = selected;
 
-		if (remote.tab) { // reuse the tab restored by onUndo() of remoteTab()
+		if (remote.tab) {
 			this.makeTabBlank(remote.tab);
 		}
 		else {
