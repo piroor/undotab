@@ -323,7 +323,10 @@ var UndoTabService = {
 		if (aData.tabs)
 			ids.tabs = aData.tabs.map(function(aTab) {
 						return this.manager.getId(aTab);
-					}, this);
+					}, this)
+					.filter(function(aTab) {
+						return aTab;
+					});
 		if (aExtra) {
 			for (let i in aExtra)
 			{

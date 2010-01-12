@@ -273,6 +273,9 @@
 			if (!history.canUndo || undoing)
 				return { done : true };
 
+			if (options.entry)
+				return this._goToEntry(history, options.entry, options.window, 'undo');
+
 			this._setUndoingState(options.key, true);
 			var processed = false;
 			var error;
@@ -411,6 +414,9 @@
 			log('redo start ('+history.index+' / '+max+', '+options.name+' for '+options.windowId+', '+redoing+')');
 			if (!history.canRedo || redoing)
 				return { done : true };
+
+			if (options.entry)
+				return this._goToEntry(history, options.entry, options.window, 'redo');
 
 			this._setRedoingState(options.key, true);
 			var processed = false;
@@ -595,6 +601,32 @@
 			}
 
 			return done;
+		},
+		_goToEntry : function(aWindow, aHistory, aEntry, aMode)
+		{
+			switch (aMode)
+			{
+				case 'undo':
+					if (aHistory.currentEntries.indexOf(aEntry) > -1) {
+						this.goToIndex(aWindow, aHistory.name, aHistory.index-1);
+						return;
+					}
+					if (aHistory.getEntriesAt(history.index-1).indexOf(aEntry) > -1) {
+						this.goToIndex(aWindow, aHistory.name, aHistory.index-2);
+						return;
+					}
+					break;
+				case 'redo':
+					if (aHistory.currentEntries.indexOf(aEntry) > -1) {
+						this.goToIndex(aWindow, aHistory.name, aHistory.index+1);
+						return;
+					}
+					if (aHistory.getEntriesAt(history.index+1).indexOf(aEntry) > -1) {
+						this.goToIndex(aWindow, aHistory.name, aHistory.index+2);
+						return;
+					}
+					break;
+			}
 		},
 
 		isUndoing : function()
