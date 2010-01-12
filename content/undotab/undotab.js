@@ -475,8 +475,10 @@ var UndoTabService = {
 		window.removeEventListener('DOMContentLoaded', this, false);
 
 		window.addEventListener('unload', this, false);
+		window.addEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.addEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
 		window.addEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
+		window.addEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
 
 		this.addPrefListener(this);
 		window.setTimeout(function(aSelf) {
@@ -694,8 +696,10 @@ var UndoTabService = {
 
 		window.removeEventListener('unload', this, false);
 
+		window.removeEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.removeEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
 		window.removeEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
+		window.removeEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
 
 		this.removePrefListener(this);
 	},
@@ -724,6 +728,17 @@ var UndoTabService = {
 
 			case 'popupshowing':
 				this.updateMenuPopup(aEvent.currentTarget);
+				break;
+
+			case 'UIOperationHistoryPreUndo:TabbarOperations':
+				switch(aEvent.entry.name)
+				{
+					case 'undotab-addTab':    return this.onPreUndoTabOpen(aEvent);
+					case 'undotab-removeTab': return this.onPreUndoTabClose(aEvent);
+					case 'undotab-tearOffTab-our':
+					case 'undotab-tearOffTab-remote':
+							return this.onPreUndoTearOffTab(aEvent);
+				}
 				break;
 
 			case 'UIOperationHistoryUndo:TabbarOperations':
@@ -807,6 +822,20 @@ var UndoTabService = {
 			}
 		);
 	},
+	onPreUndoTabOpen : function UT_onPreUndoTabOpen(aEvent)
+	{
+		var entry = aEvent.entry;
+		var data  = entry.data;
+
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (!target.browser || !target.tab)
+			return;
+
+		window['piro.sakura.ne.jp'].stopRendering.stop();
+		window.setTimeout(function() {
+			window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+	},
 	onUndoTabOpen : function UT_onUndoTabOpen(aEvent)
 	{
 		var entry = aEvent.entry;
@@ -816,16 +845,10 @@ var UndoTabService = {
 		if (!target.browser || !target.tab)
 			return aEvent.preventDefault();
 
-		window['piro.sakura.ne.jp'].stopRendering.stop();
-
 		data.state = this.getTabState(target.tab);
 		data.position = target.tab._tPos;
 		data.isSelected = target.tab.selected;
 		this.irrevocableRemoveTab(target.tab, target.browser);
-
-		window.setTimeout(function() {
-			window['piro.sakura.ne.jp'].stopRendering.start();
-		}, 0);
 	},
 	onRedoTabOpen : function UT_onRedoTabOpen(aEvent)
 	{
@@ -949,16 +972,28 @@ var UndoTabService = {
 			}
 		);
 	},
+	onPreUndoTabClose : function UT_onPreUndoTabClose(aEvent)
+	{
+		var entry = aEvent.entry;
+		var data  = entry.data;
+
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (!target.browser || target.tab)
+			return;
+
+		window['piro.sakura.ne.jp'].stopRendering.stop();
+		window.setTimeout(function() {
+			window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+	},
 	onUndoTabClose : function UT_onUndoTabClose(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
 		var target = this.getTabOpetarionTargetsBy(data);
-		if (!target.browser)
+		if (!target.browser || target.tab)
 			return aEvent.preventDefault();
-
-		window['piro.sakura.ne.jp'].stopRendering.stop();
 
 		var tab = target.browser.addTab('about:blank');
 		this.setTabState(tab, data.state);
@@ -968,10 +1003,6 @@ var UndoTabService = {
 
 		if (data.isSelected)
 			target.browser.selectedTab = tab;
-
-		window.setTimeout(function() {
-			window['piro.sakura.ne.jp'].stopRendering.start();
-		}, 0);
 	},
 	onRedoTabClose : function UT_onRedoTabClose(aEvent)
 	{
@@ -1301,6 +1332,15 @@ var UndoTabService = {
 		if (selected)
 			our.browser.selectedTab = selected;
 
+		our.window['piro.sakura.ne.jp'].stopRendering.stop();
+		our.window.setTimeout(function() {
+			our.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+		remote.window['piro.sakura.ne.jp'].stopRendering.stop();
+		remote.window.setTimeout(function() {
+			remote.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+
 		if (remote.tab) { // reuse the tab restored by onUndo() of remoteTab()
 			this.makeTabBlank(remote.tab);
 		}
@@ -1339,6 +1379,15 @@ var UndoTabService = {
 		data.remote.height = remote.window.outerHeight;
 		data.remote.x      = remote.window.screenX;
 		data.remote.y      = remote.window.screenY;
+
+		our.window['piro.sakura.ne.jp'].stopRendering.stop();
+		our.window.setTimeout(function() {
+			our.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+		remote.window['piro.sakura.ne.jp'].stopRendering.stop();
+		remote.window.setTimeout(function() {
+			remote.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
 
 		if (our.tab) {
 			this.makeTabBlank(our.tab);
@@ -1547,13 +1596,30 @@ var UndoTabService = {
 
 		return remoteWindow;
 	},
+	onPreUndoTearOffTab : function UT_onPreUndoTearOffTab(aEvent)
+	{
+		var entry = aEvent.entry;
+		var data  = entry.data;
+
+		var our = this.getTabOpetarionTargetsBy(data.our);
+		if (!our.window || !our.browser || !our.tab)
+			return;
+
+		our.window['piro.sakura.ne.jp'].stopRendering.stop();
+		our.window.setTimeout(function() {
+			our.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+
+		// close the tab restored by undoing of removeTab()
+		this.irrevocableRemoveTab(our.tab, our.browser);
+	},
 	onUndoTearOffTab : function UT_onUndoTearOffTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
 		var our = this.getTabOpetarionTargetsBy(data.our);
-		if (!our.window || !our.browser)
+		if (!our.window || !our.browser || our.tab)
 			return aEvent.preventDefault();
 
 		var remote = this.getTabOpetarionTargetsBy(data.remote);
@@ -1570,10 +1636,14 @@ var UndoTabService = {
 		else
 			this.manager.fakeUndo(this.HISTORY_NAME, our.window, data.our.entry);
 
-		// Tab was possibly restored by undoing of removeTab(),
-		// so close it internally.
-		if (our.tab)
-			this.irrevocableRemoveTab(our.tab, our.browser);
+		our.window['piro.sakura.ne.jp'].stopRendering.stop();
+		our.window.setTimeout(function() {
+			our.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
+		remote.window['piro.sakura.ne.jp'].stopRendering.stop();
+		remote.window.setTimeout(function() {
+			remote.window['piro.sakura.ne.jp'].stopRendering.start();
+		}, 0);
 
 		our.tab = this.importTabTo(remote.window.gBrowser.selectedTab, our.browser);
 		data.our.tab = this.manager.setElementId(our.tab, data.our.tab);
