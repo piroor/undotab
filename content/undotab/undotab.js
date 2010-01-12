@@ -297,9 +297,9 @@ var UndoTabService = {
 	{
 		return this.manager.getId.apply(this.manager, arguments);
 	},
-	setTargetById : function UT_setTargetById() /* PUBLIC API (inherited from operationHistory) */
+	getTargetById : function UT_getTargetById() /* PUBLIC API (inherited from operationHistory) */
 	{
-		return this.manager.setTargetById.apply(this.manager, arguments);
+		return this.manager.getTargetById.apply(this.manager, arguments);
 	},
 	getTargetsByIds : function UT_getTargetsByIds() /* PUBLIC API (inherited from operationHistory) */
 	{
