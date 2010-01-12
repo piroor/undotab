@@ -916,9 +916,8 @@ var UndoTabService = {
 		if (!target.browser || target.tabs.length != data.tabs.length)
 			return aEvent.preventDefault();
 
-		target.tabs.forEach(function(aTab, aIndex) {
-			aTab.linkedBrowser.loadURI(data.uris[aIndex], null, null);
-		});
+		if (data.replace)
+			target.tabs[0].linkedBrowser.loadURI(data.uris[0], null, null);
 
 		var selected = this.manager.getTargetById(data.selectedTab, target.browser);
 		if (selected)
