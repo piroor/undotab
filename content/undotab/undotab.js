@@ -221,7 +221,7 @@ var UndoTabService = {
  
 	doOperation : function UT_doOperation() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.doOperation.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME, window]));
+		return this.manager.doOperation.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	getHistory : function UT_getHistory() /* PUBLIC API (inherited from operationHistory) */ 
@@ -259,12 +259,12 @@ var UndoTabService = {
  
 	fakeUndo : function UT_fakeUndo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.fakeUndo.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME]));
+		return this.manager.fakeUndo.apply(this.manager, [this.HISTORY_NAME].concat(Array.slice(arguments)));
 	},
  
 	fakeRedo : function UT_fakeRedo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.fakeRedo.apply(this.manager, Array.slice(arguments).concat([this.HISTORY_NAME]));
+		return this.manager.fakeRedo.apply(this.manager, [this.HISTORY_NAME].concat(Array.slice(arguments)));
 	},
  
 	getWindowId : function UT_getWindowId() /* PUBLIC API (inherited from operationHistory) */ 
