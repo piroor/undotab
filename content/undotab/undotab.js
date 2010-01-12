@@ -214,9 +214,9 @@ var UndoTabService = {
   
 /* Commands */ 
 	
-	addEntry : function UT_addEntry(aEntry) /* PUBLIC API (inherited from operationHistory) */ 
+	addEntry : function UT_addEntry() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.addEntry(this.HISTORY_NAME, window, aEntry);
+		return this.manager.addEntry.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	doOperation : function UT_doOperation() /* PUBLIC API (inherited from operationHistory) */ 
@@ -226,35 +226,35 @@ var UndoTabService = {
  
 	getHistory : function UT_getHistory() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.getHistory(this.HISTORY_NAME, window);
+		return this.manager.getHistory.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	undo : function UT_undo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.undo(this.HISTORY_NAME, window);
+		return this.manager.undo.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	redo : function UT_redo() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.redo(this.HISTORY_NAME, window);
+		return this.manager.redo.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
-	goToIndex : function UT_goToIndex(aIndex) /* PUBLIC API (inherited from operationHistory) */ 
+	goToIndex : function UT_goToIndex() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.goToIndex(aIndex, this.HISTORY_NAME, window);
+		return this.manager.goToIndex.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	isUndoing : function UT_isUndoing() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.isUndoing(this.HISTORY_NAME, window);
+		return this.manager.isUndoing.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
 	isRedoing : function UT_isRedoing() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.isRedoing(this.HISTORY_NAME, window);
+		return this.manager.isRedoing.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
 	isUndoable : function UT_isUndoable() /* PUBLIC API (inherited from operationHistory) */ 
 	{
-		return this.manager.isUndoable(this.HISTORY_NAME, window);
+		return this.manager.isUndoable.apply(this.manager, [this.HISTORY_NAME, window].concat(Array.slice(arguments)));
 	},
  
 	fakeUndo : function UT_fakeUndo() /* PUBLIC API (inherited from operationHistory) */ 
@@ -323,7 +323,7 @@ var UndoTabService = {
 		if (aData.tabs)
 			ids.tabs = aData.tabs.map(function(aTab) {
 						return this.manager.getId(aTab);
-					});
+					}, this);
 		if (aExtra) {
 			for (let i in aExtra)
 			{
