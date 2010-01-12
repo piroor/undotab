@@ -323,10 +323,7 @@ var UndoTabService = {
 		if (aData.tabs)
 			ids.tabs = aData.tabs.map(function(aTab) {
 						return this.manager.getId(aTab);
-					}, this)
-					.filter(function(aTab) {
-						return aTab;
-					});
+					}, this);
 		if (aExtra) {
 			for (let i in aExtra)
 			{
@@ -371,7 +368,11 @@ var UndoTabService = {
 		}
 		else if (aData.tabs && aData.tabs.length) {
 			targets.tabs = targets.browser ?
-				manager.getTargetsByIds.apply(manager, aData.tabs.concat([targets.browser.mTabContainer])) :
+				manager.getTargetsByIds
+					.apply(manager, aData.tabs.concat([targets.browser.mTabContainer]))
+					.filter(function(aTab) {
+						return aTab;
+					}) :
 				[] ;
 			if (targets.tabs.length)
 				targets.tab = targets.tabs[0];
