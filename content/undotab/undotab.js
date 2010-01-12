@@ -754,7 +754,6 @@ var UndoTabService = {
 					case 'undotab-loadTabs':  return this.onRedoLoadTabs(aEvent);
 					case 'undotab-removeTab': return this.onRedoTabClose(aEvent);
 					case 'undotab-moveTab':   return this.onRedoTabMove(aEvent);
-					case 'undotab-duplicateTab':     return this.onRedoDuplicateTab(aEvent);
 					case 'undotab-removeAllTabsBut': return this.onRedoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
 					case 'undotab-swapBrowsersAndCloseOther-remote':
@@ -765,6 +764,13 @@ var UndoTabService = {
 					case 'undotab-tearOffTab-our':
 					case 'undotab-tearOffTab-remote':
 							return this.onRedoTearOffTab(aEvent);
+				}
+				break;
+
+			case 'UIOperationHistoryPostRedo:TabbarOperations':
+				switch(aEvent.entry.name)
+				{
+					case 'undotab-duplicateTab': return this.onPostRedoDuplicateTab(aEvent);
 				}
 				break;
 		}
@@ -1057,7 +1063,8 @@ var UndoTabService = {
 				}),
 				our : this.getTabOpetarionTargetsData({
 					browser : aTabBrowser,
-					tab     : null
+					tab     : null,
+					state   : null
 					}, {
 					position   : -1,
 					isSelected : false
@@ -1066,11 +1073,13 @@ var UndoTabService = {
 
 		var newTab;
 
+		var self = this;
 		this.manager.doOperation(
 			function(aParams) {
 				newTab = aTask.call(aTabBrowser);
 				if (newTab) {
 					data.our.tab = aParams.manager.getId(newTab);
+					data.our.state = self.getTabState(aTab);
 					data.our.position = newTab._tPos;
 				}
 			},
@@ -1094,23 +1103,17 @@ var UndoTabService = {
 			return aEvent.preventDefault();
 
 		data.our.isSelected = our.tab.selected;
-		this.irrevocableRemoveTab(our.tab, our.browser);
 	},
-	onRedoDuplicateTab : function UT_onRedoDuplicateTab(aEvent)
+	onPostRedoDuplicateTab : function UT_onPostRedoDuplicateTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
-
-		var remote = this.getTabOpetarionTargetsBy(data.remote);
-		if (!remote.window || !remote.browser || !remote.tab)
-			return aEvent.preventDefault();
 
 		var our = this.getTabOpetarionTargetsBy(data.our);
 		if (!our.browser || !our.tab)
 			return aEvent.preventDefault();
 
-		var tab = our.browser.duplicateTab(remote.tab);
-		data.our.tab = this.manager.setElementId(tab, data.our.tab);
+		this.setTabState(our.tab, data.our.state);
 
 		if (data.our.position > -1)
 			our.browser.moveTabTo(tab, data.our.position);
