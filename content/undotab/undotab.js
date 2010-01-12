@@ -1371,7 +1371,7 @@ var UndoTabService = {
 
 		if (entry.name == 'undotab-swapBrowsersAndCloseOther-our') {
 			// reopen for undo of addTab()
-			our.tab = our.browser.addTab('about:blank?reopened');
+			our.tab = our.browser.addTab('about:blank');
 			this.manager.setElementId(our.tab, data.our.tab);
 			our.browser.moveTabTo(our.tab, ourPosition);
 		}
