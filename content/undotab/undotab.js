@@ -726,6 +726,14 @@ var UndoTabService = {
 				this.updateMenuPopup(aEvent.currentTarget);
 				break;
 
+			case 'UIOperationHistoryPreUndo:TabbarOperations':
+				switch(aEvent.entry.name)
+				{
+					case 'undotab-duplicateTab':
+						return this.onPreUndoDuplicateTab(aEvent);
+				}
+				break;
+
 			case 'UIOperationHistoryUndo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
@@ -733,17 +741,17 @@ var UndoTabService = {
 					case 'undotab-loadTabs':  return this.onUndoLoadTabs(aEvent);
 					case 'undotab-removeTab': return this.onUndoTabClose(aEvent);
 					case 'undotab-moveTab':   return this.onUndoTabMove(aEvent);
-					case 'undotab-duplicateTab':     return this.onUndoDuplicateTab(aEvent);
-					case 'undotab-removeAllTabsBut': return this.onUndoRemoveAllTabsBut(aEvent);
+					case 'undotab-removeAllTabsBut':
+						return this.onUndoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
 					case 'undotab-swapBrowsersAndCloseOther-remote':
-							return this.onUndoSwapBrowsersAndCloseOther(aEvent);
+						return this.onUndoSwapBrowsersAndCloseOther(aEvent);
 					case 'undotab-onDrop-importTab-our':
 					case 'undotab-onDrop-importTab-remote':
-							return this.onUndoImportTabOnDrop(aEvent);
+						return this.onUndoImportTabOnDrop(aEvent);
 					case 'undotab-tearOffTab-our':
 					case 'undotab-tearOffTab-remote':
-							return this.onUndoTearOffTab(aEvent);
+						return this.onUndoTearOffTab(aEvent);
 				}
 				break;
 
@@ -754,23 +762,25 @@ var UndoTabService = {
 					case 'undotab-loadTabs':  return this.onRedoLoadTabs(aEvent);
 					case 'undotab-removeTab': return this.onRedoTabClose(aEvent);
 					case 'undotab-moveTab':   return this.onRedoTabMove(aEvent);
-					case 'undotab-removeAllTabsBut': return this.onRedoRemoveAllTabsBut(aEvent);
+					case 'undotab-removeAllTabsBut':
+						return this.onRedoRemoveAllTabsBut(aEvent);
 					case 'undotab-swapBrowsersAndCloseOther-our':
 					case 'undotab-swapBrowsersAndCloseOther-remote':
-							return this.onRedoSwapBrowsersAndCloseOther(aEvent);
+						return this.onRedoSwapBrowsersAndCloseOther(aEvent);
 					case 'undotab-onDrop-importTab-our':
 					case 'undotab-onDrop-importTab-remote':
-							return this.onRedoImportTabOnDrop(aEvent);
+						return this.onRedoImportTabOnDrop(aEvent);
 					case 'undotab-tearOffTab-our':
 					case 'undotab-tearOffTab-remote':
-							return this.onRedoTearOffTab(aEvent);
+						return this.onRedoTearOffTab(aEvent);
 				}
 				break;
 
 			case 'UIOperationHistoryPostRedo:TabbarOperations':
 				switch(aEvent.entry.name)
 				{
-					case 'undotab-duplicateTab': return this.onPostRedoDuplicateTab(aEvent);
+					case 'undotab-duplicateTab':
+						return this.onPostRedoDuplicateTab(aEvent);
 				}
 				break;
 		}
@@ -1055,21 +1065,12 @@ var UndoTabService = {
 			return aTask.call(aTabBrowser);
 
 		var b = this.getTabBrowserFromChild(aTab);
-		var data = {
-				remote : this.getTabOpetarionTargetsData({
-					window  : b.ownerDocument.defaultView,
-					browser : b,
-					tab     : aTab
-				}),
-				our : this.getTabOpetarionTargetsData({
-					browser : aTabBrowser,
-					tab     : null,
-					state   : null
-					}, {
-					position   : -1,
-					isSelected : false
-				})
-			};
+		var data = this.getTabOpetarionTargetsData({
+				browser : aTabBrowser
+				}, {
+				position   : -1,
+				isSelected : false
+			});
 
 		var newTab;
 
@@ -1077,11 +1078,12 @@ var UndoTabService = {
 		this.manager.doOperation(
 			function(aParams) {
 				newTab = aTask.call(aTabBrowser);
-				if (newTab) {
-					data.our.tab = aParams.manager.getId(newTab);
-					data.our.state = self.getTabState(aTab);
-					data.our.position = newTab._tPos;
-				}
+				if (!newTab)
+					return false;
+
+				data.tab = aParams.manager.getId(newTab);
+				data.state = self.getTabState(aTab);
+				data.position = newTab._tPos;
 			},
 			this.HISTORY_NAME,
 			window,
@@ -1093,34 +1095,34 @@ var UndoTabService = {
 		);
 		return newTab;
 	},
-	onUndoDuplicateTab : function UT_onUndoDuplicateTab(aEvent)
+	onPreUndoDuplicateTab : function UT_onPreUndoDuplicateTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-		var our = this.getTabOpetarionTargetsBy(data.our);
-		if (!our.browser || !our.tab)
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (!target.browser || !target.tab)
 			return aEvent.preventDefault();
 
-		data.our.isSelected = our.tab.selected;
+		data.isSelected = target.tab.selected;
 	},
 	onPostRedoDuplicateTab : function UT_onPostRedoDuplicateTab(aEvent)
 	{
 		var entry = aEvent.entry;
 		var data  = entry.data;
 
-		var our = this.getTabOpetarionTargetsBy(data.our);
-		if (!our.browser || !our.tab)
+		var target = this.getTabOpetarionTargetsBy(data);
+		if (!target.browser || !target.tab)
 			return aEvent.preventDefault();
 
-		this.setTabState(our.tab, data.our.state);
+		this.setTabState(target.tab, data.state);
 
-		if (data.our.position > -1)
-			our.browser.moveTabTo(tab, data.our.position);
-		data.our.position = tab._tPos;
+		if (data.position > -1)
+			target.browser.moveTabTo(tab, data.position);
+		data.position = tab._tPos;
 
-		if (data.our.isSelected)
-			our.browser.selectedTab = tab;
+		if (data.isSelected)
+			target.browser.selectedTab = tab;
 	},
  
 	onRemoveAllTabsBut : function UT_onRemoveAllTabsBut(aTask, aTabBrowser, aStayedTab) 
