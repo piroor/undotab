@@ -77,7 +77,7 @@
    http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
 */
 (function() {
-	const currentRevision = 55;
+	const currentRevision = 56;
 
 	if (!('piro.sakura.ne.jp' in window)) window['piro.sakura.ne.jp'] = {};
 
@@ -703,6 +703,9 @@
 
 		getWindowId : function(aWindow, aDefaultId)
 		{
+			if (!aWindow)
+				throw new Error('window must be specified.');
+
 			var root = aWindow.document.documentElement;
 			var id = root.getAttribute(this.WINDOW_ID) || aDefaultId;
 			try {
@@ -716,6 +719,9 @@
 
 		setWindowId : function(aWindow, aDefaultId)
 		{
+			if (!aWindow)
+				throw new Error('window must be specified.');
+
 			var id = aDefaultId;
 			var root = aWindow.document.documentElement;
 
@@ -740,7 +746,10 @@
 
 		getWindowById : function(aId)
 		{
-			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			if (!aId)
+				throw new Error('window id must be specified.');
+
+			var targets = WindowMediator.getEnumerator(null);
 			while (targets.hasMoreElements())
 			{
 				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
@@ -752,6 +761,9 @@
 
 		getElementId : function(aElement, aDefaultId)
 		{
+			if (!aElement)
+				throw new Error('DOM element must be specified.');
+
 			var id = aElement.getAttribute(this.ELEMENT_ID) || aDefaultId;
 			try {
 				if (!id && aElement.localName == 'tab')
@@ -764,6 +776,9 @@
 
 		setElementId : function(aElement, aDefaultId)
 		{
+			if (!aElement)
+				throw new Error('DOM element must be specified.');
+
 			var id = aDefaultId;
 
 			// When the ID has been already used by other elements,
@@ -786,26 +801,6 @@
 			return id;
 		},
 
-		setBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
-		{
-			var parent = aNode.ownerDocument.getBindingParent(aNode);
-			return parent ? this.setElementId(parent, aDefaultId) : null ;
-		},
-
-		getWindowById : function(aId)
-		{
-			if (!aId)
-				throw new Error('window id must be specified.');
-			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
-			while (targets.hasMoreElements())
-			{
-				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
-				if (aId == this.getWindowId(target))
-					return target;
-			}
-			return null;
-		},
-
 		getElementById : function()
 		{
 			var options = this._getElementOptionsFromArguments(arguments);
@@ -818,6 +813,18 @@
 				).singleNodeValue;
 		},
 
+		getBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
+		{
+			var parent = aNode.ownerDocument.getBindingParent(aNode);
+			return parent ? this.getId(parent, aDefaultId) : null ;
+		},
+
+		setBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
+		{
+			var parent = aNode.ownerDocument.getBindingParent(aNode);
+			return parent ? this.setElementId(parent, aDefaultId) : null ;
+		},
+
 		getId : function(aTarget, aDefaultId)
 		{
 			if (aTarget instanceof Ci.nsIDOMWindow)
@@ -827,12 +834,6 @@
 			if (aTarget instanceof Ci.nsIDOMElement)
 				return this.getElementId(aTarget, aDefaultId);
 			throw new Error(aTarget+' is an unknown type item.');
-		},
-
-		getBindingParentId : function(aNode, aDefaultId) // => planned to be removed or updated...
-		{
-			var parent = aNode.ownerDocument.getBindingParent(aNode);
-			return parent ? this.getId(parent, aDefaultId) : null ;
 		},
 
 		getTargetById : function()
@@ -917,7 +918,7 @@
 		init : function()
 		{
 			// inherit history table from existing window
-			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			var targets = WindowMediator.getEnumerator(null);
 			while (targets.hasMoreElements())
 			{
 				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
@@ -1136,7 +1137,7 @@
 
 		_getWindowsById : function(aId)
 		{
-			var targets = WindowMediator.getZOrderDOMWindowEnumerator(null, true);
+			var targets = WindowMediator.getEnumerator(null);
 			var windows = [];
 			while (targets.hasMoreElements())
 			{
