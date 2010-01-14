@@ -590,7 +590,7 @@ var UndoTabService = {
 	overrideGlobalFunctions : function UT_overrideGlobalFunctions() 
 	{
 		eval('window.undoCloseTab = '+window.undoCloseTab.toSource().replace(
-			/(\(([^\)]*)\)\s*\{)/,
+			/(\(([^\(\)]*)\)\s*\{)/,
 			<![CDATA[$1
 				return UndoTabService.onUndoCloseTab(
 					function($2) {
