@@ -4,3 +4,8 @@ overlay	chrome://browser/content/browser.xul	chrome://undotab/content/undotab.xu
 
 locale	undotab	en-US	jar:chrome/undotab.jar!/locale/en-US/undotab/
 locale	undotab	ja	jar:chrome/undotab.jar!/locale/ja/undotab/
+
+skin	undotab	classic/1.0	jar:chrome/undotab.jar!/skin/classic/undotab/
+
+style	chrome://browser/content/browser.xul	chrome://undotab/skin/toolbar.css
+style	chrome://global/content/customizeToolbar.xul	chrome://undotab/skin/toolbar.css

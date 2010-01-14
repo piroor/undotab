@@ -1,0 +1,85 @@
+@namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+
+
+#undotab-undo-button,
+#undotab-redo-button {
+	list-style-image: url("Toolbar.png");
+}
+
+[iconsize="small"] #undotab-undo-button,
+[iconsize="small"] #undotab-redo-button {
+	list-style-image: url("Toolbar-small.png");
+}
+
+#undotab-undo-button {
+	-moz-image-region: rect(0px 24px 24px 0px);
+}
+#undotab-undo-button[buttonover="true"],
+#undotab-undo-button:hover {
+	-moz-image-region: rect(24px 24px 48px 0px);
+}
+#undotab-undo-button:active,
+#undotab-undo-button[buttonover="true"]:active,
+#undotab-undo-button:hover:active {
+	-moz-image-region: rect(48px 24px 72px 0px);
+}
+#undotab-undo-button[disabled="true"],
+#undotab-undo-button[disabled="true"][buttonover="true"],
+#undotab-undo-button[disabled="true"]:hover {
+	-moz-image-region: rect(72px 24px 96px 0px);
+}
+
+[iconsize="small"] #undotab-undo-button {
+	-moz-image-region: rect(0px 16px 16px 0px);
+}
+[iconsize="small"] #undotab-undo-button[buttonover="true"],
+[iconsize="small"] #undotab-undo-button:hover {
+	-moz-image-region: rect(16px 16px 32px 0px);
+}
+[iconsize="small"] #undotab-undo-button:active,
+[iconsize="small"] #undotab-undo-button[buttonover="true"]:active,
+[iconsize="small"] #undotab-undo-button:hover:active {
+	-moz-image-region: rect(32px 16px 48px 0px);
+}
+[iconsize="small"] #undotab-undo-button[disabled="true"],
+[iconsize="small"] #undotab-undo-button[disabled="true"][buttonover="true"],
+[iconsize="small"] #undotab-undo-button[disabled="true"]:hover {
+	-moz-image-region: rect(48px 16px 64px 0px);
+}
+
+
+#undotab-redo-button {
+	-moz-image-region: rect(0px 48px 24px 24px);
+}
+#undotab-redo-button[buttonover="true"],
+#undotab-redo-button:hover {
+	-moz-image-region: rect(24px 48px 48px 24px);
+}
+#undotab-redo-button:active,
+#undotab-redo-button[buttonover="true"]:active,
+#undotab-redo-button:hover:active {
+	-moz-image-region: rect(48px 48px 72px 24px);
+}
+#undotab-redo-button[disabled="true"],
+#undotab-redo-button[disabled="true"][buttonover="true"],
+#undotab-redo-button[disabled="true"]:hover {
+	-moz-image-region: rect(72px 48px 96px 24px);
+}
+
+[iconsize="small"] #undotab-redo-button {
+	-moz-image-region: rect(0px 32px 16px 16px);
+}
+[iconsize="small"] #undotab-redo-button[buttonover="true"],
+[iconsize="small"] #undotab-redo-button:hover {
+	-moz-image-region: rect(16px 32px 32px 16px);
+}
+[iconsize="small"] #undotab-redo-button:active,
+[iconsize="small"] #undotab-redo-button[buttonover="true"]:active,
+[iconsize="small"] #undotab-redo-button:hover:active {
+	-moz-image-region: rect(32px 32px 48px 16px);
+}
+[iconsize="small"] #undotab-redo-button[disabled="true"],
+[iconsize="small"] #undotab-redo-button[disabled="true"][buttonover="true"],
+[iconsize="small"] #undotab-redo-button[disabled="true"]:hover {
+	-moz-image-region: rect(48px 32px 64px 16px);
+}
