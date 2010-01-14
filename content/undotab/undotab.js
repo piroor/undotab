@@ -574,8 +574,14 @@ var UndoTabService = {
 		window.removeEventListener('DOMContentLoaded', this, false);
 
 		window.addEventListener('unload', this, false);
+
+		window.addEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.addEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
+		window.addEventListener('UIOperationHistoryUndoComplete:TabbarOperations', this, false);
+
 		window.addEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
+		window.addEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
+		window.addEventListener('UIOperationHistoryRedoComplete:TabbarOperations', this, false);
 
 		this.addPrefListener(this);
 		window.setTimeout(function(aSelf) {
@@ -793,8 +799,13 @@ var UndoTabService = {
 
 		window.removeEventListener('unload', this, false);
 
+		window.removeEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.removeEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
+		window.removeEventListener('UIOperationHistoryUndoComplete:TabbarOperations', this, false);
+
 		window.removeEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
+		window.removeEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
+		window.removeEventListener('UIOperationHistoryRedoComplete:TabbarOperations', this, false);
 
 		this.removePrefListener(this);
 	},
@@ -891,6 +902,12 @@ var UndoTabService = {
 					case 'undotab-duplicateTab':
 						return this.onPostRedoDuplicateTab(aEvent);
 				}
+				break;
+
+			case 'UIOperationHistoryUndoComplete:TabbarOperations':
+				break;
+
+			case 'UIOperationHistoryRedoComplete:TabbarOperations':
 				break;
 		}
 	},

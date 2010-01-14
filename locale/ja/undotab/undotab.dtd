@@ -22,3 +22,10 @@
 
 <!ENTITY menu.label       "タブの操作の履歴">
 <!ENTITY menu.clear.label "履歴を消去">
+
+<!ENTITY button.undo.label                "元に戻す">
+<!ENTITY button.undo.tooltiptext.default  "タブの操作を元に戻す">
+<!ENTITY button.undo.tooltiptext.modifier "タブの操作を元に戻す（&#37;S）">
+<!ENTITY button.redo.label                "やり直す">
+<!ENTITY button.redo.tooltiptext.default  "タブの操作をやり直す">
+<!ENTITY button.redo.tooltiptext.modifier "タブの操作をやり直す（&#37;S）">

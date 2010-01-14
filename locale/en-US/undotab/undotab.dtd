@@ -21,3 +21,10 @@
 
 <!ENTITY menu.label       "Tab Operations History">
 <!ENTITY menu.clear.label "Clear History">
+
+<!ENTITY button.undo.label                "Undo">
+<!ENTITY button.undo.tooltiptext.default  "Undo tab operation">
+<!ENTITY button.undo.tooltiptext.modifier "Undo tab operation (&#37;S)">
+<!ENTITY button.redo.label                "Redo">
+<!ENTITY button.redo.tooltiptext.default  "Redo tab operation">
+<!ENTITY button.redo.tooltiptext.modifier "Redo tab operation (&#37;S)">
