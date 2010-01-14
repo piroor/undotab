@@ -1,6 +1,11 @@
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
 
+#palette-box #undotab-undo-button label,
+#palette-box #undotab-redo-button label {
+	visibility: collapse;
+}
+
 #undotab-undo-button,
 #undotab-redo-button {
 	list-style-image: url("Toolbar.png");

@@ -28,6 +28,7 @@
 <toolbarpalette id="BrowserToolbarPalette">
 	<toolbarbutton id="undotab-undo-button"
 		label="&button.undo.label;"
+		title="&button.undo.tooltiptext.default;"
 		tooltiptext="&button.undo.tooltiptext.default;"
 		tooltiptext-default="&button.undo.tooltiptext.default;"
 		tooltiptext-modifier="&button.undo.tooltiptext.modifier;"
@@ -35,6 +36,7 @@
 		oncommand="UndoTabService.undo();"/>
 	<toolbarbutton id="undotab-redo-button"
 		label="&button.redo.label;"
+		title="&button.redo.tooltiptext.default;"
 		tooltiptext="&button.redo.tooltiptext.default;"
 		tooltiptext-default="&button.redo.tooltiptext.default;"
 		tooltiptext-modifier="&button.redo.tooltiptext.modifier;"

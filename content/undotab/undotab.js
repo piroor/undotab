@@ -25,6 +25,14 @@ var UndoTabService = {
 	},
 	_bundle : null,
  
+	get undoButton() { 
+		return document.getElementById('undotab-undo-button');
+	},
+ 
+	get redoButton() { 
+		return document.getElementById('undotab-redo-button');
+	},
+ 
 /* Utilities */ 
 	
 	evalInSandbox : function UT_evalInSandbox(aCode, aOwner) 
@@ -400,7 +408,7 @@ var UndoTabService = {
 					let tab = aData.tabs[i];
 					if (
 						!aData.tabs.hasOwnProperty(i) ||
-						(tab && tab.localName != 'tab')
+						(!tab || tab.localName != 'tab')
 						)
 						continue;
 					ids.tabs[i] = tab ? this.manager.getId(tab) : null ;
@@ -564,6 +572,42 @@ var UndoTabService = {
 		range.insertNode(fragment);
 		range.detach();
 	},
+ 
+	updateButtons : function UT_updateButtons(aCustomize) 
+	{
+		var undo = this.undoButton;
+		var redo = this.redoButton;
+		if (!undo && !redo) return;
+
+		var history = this.getHistory();
+		var current = history.currentEntry;
+		if (undo) {
+			if (history.canUndo && !aCustomize) {
+				undo.setAttribute('tooltiptext',
+					undo.getAttribute('tooltiptext-modifier')
+						.replace(/%S/gi, current.label));
+				undo.removeAttribute('disabled');
+			}
+			else {
+				undo.setAttribute('tooltiptext',
+					undo.getAttribute('tooltiptext-default'));
+				undo.setAttribute('disabled', true);
+			}
+		}
+		if (redo) {
+			if (history.canRedo && !aCustomize) {
+				redo.setAttribute('tooltiptext',
+					redo.getAttribute('tooltiptext-modifier')
+						.replace(/%S/gi, current.label));
+				redo.removeAttribute('disabled');
+			}
+			else {
+				redo.setAttribute('tooltiptext',
+					redo.getAttribute('tooltiptext-default'));
+				redo.setAttribute('disabled', true);
+			}
+		}
+	},
   
 /* Initializing */ 
 	
@@ -577,11 +621,9 @@ var UndoTabService = {
 
 		window.addEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.addEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
-		window.addEventListener('UIOperationHistoryUndoComplete:TabbarOperations', this, false);
-
 		window.addEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
 		window.addEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
-		window.addEventListener('UIOperationHistoryRedoComplete:TabbarOperations', this, false);
+		window.addEventListener('UIOperationHistoryUpdate:TabbarOperations', this, false);
 
 		this.addPrefListener(this);
 		window.setTimeout(function(aSelf) {
@@ -591,6 +633,8 @@ var UndoTabService = {
 
 		this.overrideGlobalFunctions();
 		this.initTabBrowser(document.getElementById('content'));
+
+		this.updateButtons();
 	},
 	
 	overrideGlobalFunctions : function UT_overrideGlobalFunctions() 
@@ -610,6 +654,30 @@ var UndoTabService = {
 				);
 			$1]]>
 		));
+
+		if ('BrowserCustomizeToolbar' in window) {
+			eval('window.BrowserCustomizeToolbar = '+
+				window.BrowserCustomizeToolbar.toSource().replace(
+					'{',
+					'{ UndoTabService.updateButtons(true); '
+				)
+			);
+		}
+		var toolbox = document.getElementById('navigator-toolbox');
+		if (toolbox.customizeDone) {
+			toolbox.__undotab__customizeDone = toolbox.customizeDone;
+			toolbox.customizeDone = function(aChanged) {
+				this.__undotab__customizeDone(aChanged);
+				UndoTabService.updateButtons();
+			};
+		}
+		if ('BrowserToolboxCustomizeDone' in window) {
+			window.__undotab__BrowserToolboxCustomizeDone = window.BrowserToolboxCustomizeDone;
+			window.BrowserToolboxCustomizeDone = function(aChanged) {
+				window.__undotab__BrowserToolboxCustomizeDone.apply(window, arguments);
+				UndoTabService.updateButtons();
+			};
+		}
 	},
  
 	initTabBrowser : function UT_initTabBrowser(aTabBrowser) 
@@ -801,11 +869,9 @@ var UndoTabService = {
 
 		window.removeEventListener('UIOperationHistoryPreUndo:TabbarOperations', this, false);
 		window.removeEventListener('UIOperationHistoryUndo:TabbarOperations', this, false);
-		window.removeEventListener('UIOperationHistoryUndoComplete:TabbarOperations', this, false);
-
 		window.removeEventListener('UIOperationHistoryRedo:TabbarOperations', this, false);
 		window.removeEventListener('UIOperationHistoryPostRedo:TabbarOperations', this, false);
-		window.removeEventListener('UIOperationHistoryRedoComplete:TabbarOperations', this, false);
+		window.removeEventListener('UIOperationHistoryUpdate:TabbarOperations', this, false);
 
 		this.removePrefListener(this);
 	},
@@ -904,10 +970,8 @@ var UndoTabService = {
 				}
 				break;
 
-			case 'UIOperationHistoryUndoComplete:TabbarOperations':
-				break;
-
-			case 'UIOperationHistoryRedoComplete:TabbarOperations':
+			case 'UIOperationHistoryUpdate:TabbarOperations':
+				this.updateButtons();
 				break;
 		}
 	},
@@ -1021,7 +1085,7 @@ var UndoTabService = {
 					tabs.unshift(aTabBrowser.selectedTab);
 				}
 				data.tabs = tabs.map(function(aTab) {
-						return self.manager.getId(aTab);
+					return self.manager.getId(aTab);
 				});
 			},
 			this.HISTORY_NAME,
@@ -1538,7 +1602,7 @@ var UndoTabService = {
 		}
 
 		data.our.tabs.selected = this.manager.getId(our.browser.selectedTab);
-		if (!willClose) {
+		if (!willClose && !remote.window.closed) {
 			if (entry.name == 'undotab-swapBrowsersAndCloseOther-remote') {
 				// reopen for redo of removeTab()
 				remote.tabs.exported = remote.browser.addTab('about:blank');
@@ -1595,7 +1659,7 @@ var UndoTabService = {
 					function(aParams) {
 						aTask.call(aTabBrowser);
 						data.our.tabs.newSelected = self.manager.getId(aTabBrowser.selectedTab);
-						if (!data.remote.willClose)
+						if (!data.remote.willClose && !remoteWindow.closed)
 							data.remote.tabs.newSelected = self.manager.getId(remoteBrowser.selectedTab);
 					},
 					self.HISTORY_NAME,
