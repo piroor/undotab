@@ -994,13 +994,19 @@ var UndoTabService = {
 		if (!this.isUndoable())
 			return aTask.call(aTabBrowser);
 
+		var entry;
+		var self = this;
 		this.manager.doOperation(
 			function(aParams) {
+				var before = self.getTabs(aTabBrowser).snapshotLength;
 				aTask.call(aTabBrowser);
+				var delta = before - self.getTabs(aTabBrowser).snapshotLength;
+				if (delta > 1)
+					entry.label = self.bundle.getFormattedString('undo_loadTabs_label', [delta]);
 			},
 			this.HISTORY_NAME,
 			window,
-			{
+			(entry = {
 				name  : 'undotab-addTab',
 				label : this.bundle.getString('undo_addTab_label'),
 				data  : this.getTabOpetarionTargetsData({
@@ -1010,7 +1016,7 @@ var UndoTabService = {
 					state      : this.getTabState(aTab),
 					arguments  : aArguments
 				})
-			}
+			})
 		);
 	},
 	onUndoTabOpen : function UT_onUndoTabOpen(aEvent)
@@ -1137,13 +1143,19 @@ var UndoTabService = {
 		if (!this.isUndoable())
 			return aTask.call(aTabBrowser);
 
+		var entry;
+		var self = this;
 		this.manager.doOperation(
 			function() {
+				var before = self.getTabs(aTabBrowser).snapshotLength;
 				aTask.call(aTabBrowser);
+				var delta = before - self.getTabs(aTabBrowser).snapshotLength;
+				if (delta > 1)
+					entry.label = self.bundle.getFormattedString('undo_removeTabs_label', [delta]);
 			},
 			this.HISTORY_NAME,
 			window,
-			{
+			(entry = {
 				name  : 'undotab-removeTab',
 				label : this.bundle.getString('undo_removeTab_label'),
 				data  : this.getTabOpetarionTargetsData({
@@ -1156,7 +1168,7 @@ var UndoTabService = {
 					}, {
 						state : this.getTabState(aTab)
 				})
-			}
+			})
 		);
 	},
 	onUndoTabClose : function UT_onUndoTabClose(aEvent)
@@ -1222,17 +1234,30 @@ var UndoTabService = {
 				}
 			});
 
+		var entry;
+		var self = this;
 		this.manager.doOperation(
 			function() {
+				var beforeTabs = self.getTabsArray(aTabBrowser);
+				var beforePositions = beforeTabs.map(function(aTab) {
+						return aTab._tPos;
+					});
 				aTask.call(aTabBrowser);
+				var count = 0;
+				beforeTabs.forEach(function(aTab, aIndex) {
+					if (aTab.parentNode && aTab._tPos != beforePositions[aIndex])
+						count++;
+				});
+				if (count > 1)
+					entry.label = self.bundle.getFormattedString('undo_moveTabs_label', [count]);
 			},
 			this.HISTORY_NAME,
 			window,
-			{
+			(entry = {
 				name  : 'undotab-moveTab',
 				label : this.bundle.getString('undo_moveTab_label'),
 				data  : data
-			}
+			})
 		);
 	},
 	onUndoTabMove : function UT_onUndoTabMove(aEvent)
@@ -1330,13 +1355,12 @@ var UndoTabService = {
 		if (!this.isUndoable())
 			return aTask.call(aTabBrowser);
 
+		var count = this.getTabs(aTabBrowser).snapshotLength;
 		var retVal;
 		var self = this;
 		this.manager.doOperation(
 			function(aParams) {
-				var count = self.getTabs(aTabBrowser).snapshotLength;
 				retVal = aTask.call(aTabBrowser);
-
 				// don't register if the operation is canceled.
 				return self.getTabs(aTabBrowser).snapshotLength != count;
 			},
@@ -1344,7 +1368,7 @@ var UndoTabService = {
 			window,
 			{
 				name  : 'undotab-removeAllTabsBut',
-				label : this.bundle.getString('undo_removeAllTabsBut_label'),
+				label : this.bundle.getFormattedString('undo_removeAllTabsBut_label', [count-1]),
 				data  : this.getTabOpetarionTargetsData({
 					browser : aTabBrowser,
 					tabs    : {
