@@ -540,24 +540,47 @@ var UndoTabService = {
 			clearItem.removeAttribute('collapsed');
 
 			let current = history.index;
-			history.entries
-				.forEach(function(aEntry, aIndex) {
-					var item = document.createElement('menuitem');
-					item.setAttribute('label', aEntry.label);
-					item.setAttribute('value', aIndex);
-					item.setAttribute('type', 'radio');
-					item.setAttribute('name', 'undotab-history-entry');
-					if (aIndex == current) {
-						item.setAttribute('checked', true);
-					}
-					else if (aIndex == current-1) {
+			let entries = history.entries;
+			let max = entries.length-1;
+
+			if (current == 0 && !history.canUndo)
+				current--;
+			else if (current == max && !history.canRedo)
+				current++;
+
+			entries = entries.map(function(aEntry) {
+				return aEntry.label;
+			});
+			entries.unshift(this.bundle.getString('history_initial_label'));
+			entries.push(this.bundle.getString('history_final_label'));
+			entries.forEach(function(aLabel, aIndex) {
+				let index = aIndex-1;
+				let item = fragment.insertBefore(document.createElement('menuitem'), fragment.firstChild);
+				item.setAttribute('label', aLabel);
+				item.setAttribute('value', index <= current ? index-1 : index);
+				item.setAttribute('type', 'radio');
+				item.setAttribute('name', 'undotab-history-entry');
+				if (index == current) {
+					if (current >= 0 && current <= max) {
+						let focused = fragment.insertBefore(document.createElement('menuitem'), fragment.firstChild);
+						focused.setAttribute('label', this.bundle.getString('history_current_label'));
+						focused.setAttribute('type', 'radio');
+						focused.setAttribute('name', 'undotab-history-entry');
+						focused.setAttribute('checked', true);
+						focused.setAttribute('disabled', true);
 						item.setAttribute('key', this.KEY_ID_PREFIX+'undo');
 					}
-					else if (aIndex == current+1) {
-						item.setAttribute('key', this.KEY_ID_PREFIX+'redo');
+					else {
+						item.setAttribute('checked', true);
+						item.setAttribute('disabled', true);
+						if (item.previousSibling)
+							item.previousSibling.setAttribute('key', this.KEY_ID_PREFIX+'undo');
 					}
-					fragment.insertBefore(item, fragment.firstChild);
-				}, this);
+				}
+				else if (index == current+1) {
+					item.setAttribute('key', this.KEY_ID_PREFIX+'redo');
+				}
+			}, this);
 		}
 		else {
 			separator.setAttribute('collapsed', true);
