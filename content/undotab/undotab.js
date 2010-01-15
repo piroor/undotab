@@ -1092,7 +1092,7 @@ var UndoTabService = {
 			window,
 			{
 				name  : 'undotab-loadTabs',
-				label : this.bundle.getString('undo_loadTabs_label'),
+				label : this.bundle.getFormattedString('undo_loadTabs_label', [data.uris.length]),
 				data  : data
 			}
 		);
