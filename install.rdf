@@ -23,6 +23,7 @@
                        em:description="Provides ability to undo any operations about tabs."
                        em:homepageURL="http://piro.sakura.ne.jp/xul/_undotab.html.en"
                        em:creator="SHIMODA Hiroshi">
+		<em:translator>Mikes Kaszmán István (hu-HU locale)</em:translator>
       </RDF:Description>
     </em:localized>
     <em:localized>
@@ -31,6 +32,7 @@
                        em:description="タブに関する様々な操作をやり直せるようにします。"
                        em:homepageURL="http://piro.sakura.ne.jp/xul/_undotab.html"
                        em:creator="SHIMODA Hiroshi">
+		<em:translator>Mikes Kaszmán István (hu-HU locale)</em:translator>
       </RDF:Description>
     </em:localized>
 

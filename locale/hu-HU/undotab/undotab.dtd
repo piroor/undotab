@@ -1,0 +1,30 @@
+<!ENTITY config.title "Undo Tab Operations - beállítások">
+
+
+<!ENTITY config.tab.general "Általános">
+
+<!ENTITY config.max.window.before "Az utolsó">
+<!ENTITY config.max.window.after  "lapművelet visszavonásának engedélyezése">
+
+<!ENTITY config.shortcut.caption "Gyorsbillentyűk">
+
+<!ENTITY config.shortcut.undo "Lapművelet visszavonása">
+<!ENTITY config.shortcut.redo "Lapművelet újra">
+
+<!ENTITY config.shortcut.set            "Módosítás">
+<!ENTITY config.shortcut.clear          "Törlés">
+<!ENTITY config.shortcut.reset          "Visszaállítás">
+<!ENTITY config.shortcut.dialog.message "Nyomja le az új gyorsbillentyűt">
+<!ENTITY config.shortcut.dialog.button  "Mégse">
+
+
+
+<!ENTITY menu.label       "Lapműveletek előzményei">
+<!ENTITY menu.clear.label "Előzmények törlése">
+
+<!ENTITY button.undo.label                "Visszavonás">
+<!ENTITY button.undo.tooltiptext.default  "Lapművelet visszavonása">
+<!ENTITY button.undo.tooltiptext.modifier "Visszavonás: &#37;S">
+<!ENTITY button.redo.label                "Újra">
+<!ENTITY button.redo.tooltiptext.default  "Lapművelet újra">
+<!ENTITY button.redo.tooltiptext.modifier "Újra: &#37;S">
