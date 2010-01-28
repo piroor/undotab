@@ -152,7 +152,8 @@ var UndoTabService = {
 		if (b.contentWindow && b.contentWindow.location)
 			b.contentWindow.location.replace('about:blank');
 
-		delete aTab.linkedBrowser.parentNode.__SS_data;
+		delete aTab.linkedBrowser.__SS_data; // Firefox 3.6-
+		delete aTab.linkedBrowser.parentNode.__SS_data; // -Firefox 3.5
 		delete aTab.__SS_extdata;
 	},
  
