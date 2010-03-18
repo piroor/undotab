@@ -24,6 +24,7 @@
                        em:homepageURL="http://piro.sakura.ne.jp/xul/_undotab.html.en"
                        em:creator="SHIMODA Hiroshi">
 		<em:translator>Mikes Kaszmán István (hu-HU locale)</em:translator>
+		<em:translator>tito (es-ES locale)</em:translator>
       </RDF:Description>
     </em:localized>
     <em:localized>
@@ -33,6 +34,7 @@
                        em:homepageURL="http://piro.sakura.ne.jp/xul/_undotab.html"
                        em:creator="SHIMODA Hiroshi">
 		<em:translator>Mikes Kaszmán István (hu-HU locale)</em:translator>
+		<em:translator>tito (es-ES locale)</em:translator>
       </RDF:Description>
     </em:localized>
 
