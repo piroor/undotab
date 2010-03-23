@@ -108,11 +108,13 @@ var UndoTabService = {
  
 	getTabBrowserFromChild : function UT_getTabBrowserFromChild(aTab) 
 	{
-		return this.evaluateXPath(
-				'ancestor-or-self::xul:tabbrowser',
+		var b = this.evaluateXPath(
+				'ancestor-or-self::xul:tabbrowser | '+
+				'ancestor-or-self::xul:tabs[@tabbrowser]',
 				aTab,
 				XPathResult.FIRST_ORDERED_NODE_TYPE
 			).singleNodeValue;
+		return (b && b.tabbrowser) || b;
 	},
  
 	getTabs : function UT_getTabs(aTabBrowser) 
