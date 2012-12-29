@@ -1,3 +1,3 @@
 copy buildscript\makexpi.sh .\
-bash makexpi.sh undotab version=0
+bash makexpi.sh -n undotab -o
 del makexpi.sh
