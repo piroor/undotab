@@ -954,7 +954,7 @@
 			this.initialized = true;
 		},
 
-		_initDBAsObserver : function()
+		_initDBAsObserver : function() // only for Firefox 19 and olders
 		{
 			if ('observerRegistered' in this._db)
 				return;
