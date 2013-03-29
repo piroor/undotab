@@ -1,5 +1,7 @@
 # History
 
+ - master/HEAD
+   * Modified: "jar" archive is no longer included.
  - 0.3.2010011601
    * The number of operated tabs are shown in the history menu.
    * History menu becomes more intuitive.
