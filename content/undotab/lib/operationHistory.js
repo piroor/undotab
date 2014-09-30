@@ -70,11 +70,9 @@
        item.setAttribute('checked', true);
    });
 
- license: The MIT License, Copyright (c) 2009-2010 YUKI "Piro" Hiroshi
-   http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/license.txt
+ license: The MIT License, Copyright (c) 2009-2014 YUKI "Piro" Hiroshi
  original:
-   http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.js
-   http://www.cozmixng.org/repos/piro/fx3-compatibility-lib/trunk/operationHistory.test.js
+   http://github.com/piroor/fxaddonlib-operation-history
 */
 (function() {
 	const currentRevision = 64;
@@ -765,7 +763,9 @@
 			var targets = WindowMediator.getEnumerator(null);
 			while (targets.hasMoreElements())
 			{
-				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
+				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindow);
+				if ('nsIDOMWindowInternal' in Ci) // for Firefox 7 or olders
+					target = target.QueryInterface(Ci.nsIDOMWindowInternal);
 				if (aId == this.getWindowId(target))
 					return target;
 			}
@@ -806,7 +806,7 @@
 				aElement.setAttribute(this.ELEMENT_ID, id);
 				try {
 					if (aElement.localName == 'tab')
-						SessionStore.setTabValue(aElement, this.ELEMENT_ID, id);
+						SessionStore.setTabValue(aElement, this.ELEMENT_ID, String(id));
 				}
 				catch(e) {
 				}
@@ -842,11 +842,11 @@
 		{
 			if (!aTarget)
 				return null;
-			if (aTarget instanceof Ci.nsIDOMWindow)
+			if (aTarget instanceof Window)
 				return this.getWindowId(aTarget, aDefaultId);
-			if (aTarget instanceof Ci.nsIDOMDocument)
+			if (aTarget instanceof Document)
 				return this.getWindowId(aTarget.defaultView, aDefaultId);
-			if (aTarget instanceof Ci.nsIDOMElement)
+			if (aTarget instanceof Element)
 				return this.getElementId(aTarget, aDefaultId);
 			throw new Error(aTarget+' is an unknown type item.');
 		},
@@ -893,6 +893,7 @@
 			if (!ids.length)
 				throw new Error('target id must be specified.');
 
+
 			return ids.map(function(aId) {
 					return this.getTargetById.apply(this, [aId].concat(otherArgs));
 				}, this);
@@ -936,7 +937,9 @@
 			var targets = WindowMediator.getEnumerator(null);
 			while (targets.hasMoreElements())
 			{
-				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
+				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindow);
+				if ('nsIDOMWindowInternal' in Ci) // for Firefox 7 or olders
+					target = target.QueryInterface(Ci.nsIDOMWindowInternal);
 				if (
 					'piro.sakura.ne.jp' in target &&
 					'operationHistory' in target['piro.sakura.ne.jp'] &&
@@ -954,7 +957,7 @@
 			this.initialized = true;
 		},
 
-		_initDBAsObserver : function() // only for Firefox 19 and olders
+		_initDBAsObserver : function()
 		{
 			if ('observerRegistered' in this._db)
 				return;
@@ -1098,7 +1101,7 @@
 				task  = null,
 				index = -1;
 			Array.slice(aArguments).some(function(aArg) {
-				if (aArg instanceof Ci.nsIDOMWindow)
+				if (aArg instanceof Window)
 					w = aArg;
 				else if (typeof aArg == 'string')
 					name = aArg;
@@ -1137,11 +1140,11 @@
 			Array.slice(aArguments).forEach(function(aArg) {
 				if (typeof aArg == 'string')
 					id = aArg;
-				else if (aArg instanceof Ci.nsIDOMDocument)
+				else if (aArg instanceof Document)
 					document = aArg;
-				else if (aArg instanceof Ci.nsIDOMWindow)
+				else if (aArg instanceof Window)
 					document = aArg.document;
-				else if (aArg instanceof Ci.nsIDOMNode)
+				else if (aArg instanceof Node)
 					parent = aArg;
 			});
 
@@ -1214,7 +1217,9 @@
 			var windows = [];
 			while (targets.hasMoreElements())
 			{
-				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindowInternal);
+				let target = targets.getNext().QueryInterface(Ci.nsIDOMWindow);
+				if ('nsIDOMWindowInternal' in Ci) // for Firefox 7 or olders
+					target = target.QueryInterface(Ci.nsIDOMWindowInternal);
 				let id = target.document.documentElement.getAttribute(this.WINDOW_ID);
 				try {
 					if (!id)
