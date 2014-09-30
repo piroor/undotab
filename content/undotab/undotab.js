@@ -91,7 +91,7 @@ var UndoTabService = {
   
 	getArrayFromXPathResult : function UT_getArrayFromXPathResult(aXPathResult) 
 	{
-		if (!(aXPathResult instanceof Components.interfaces.nsIDOMXPathResult)) {
+		if (!(aXPathResult instanceof XPathResult)) {
 			aXPathResult = this.evaluateXPath.apply(this, arguments);
 		}
 		var max = aXPathResult.snapshotLength;
